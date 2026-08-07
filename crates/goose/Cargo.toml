@@ -11,6 +11,9 @@ description.workspace = true
 [features]
 default = []
 online-model-meta = []
+# agent-hooks: host the framework-neutral agent-hooks control contract as a
+# tool inspector at the pre_tool_call seam (opt-in; see src/agent_hooks.rs).
+agent-hooks = ["dep:agent-hooks-sdk"]
 telemetry = []
 otel = [
     "dep:tracing-opentelemetry",
@@ -115,6 +118,10 @@ acp-http = ["dep:agent-client-protocol-http"]
 workspace = true
 
 [dependencies]
+# Optional: the agent-hooks control contract (canonical Rust core). Path
+# dependency on the sibling agent-hooks checkout; enabled by the `agent-hooks`
+# feature. `tokio-timeout` makes the per-interceptor timeout enforceable.
+agent-hooks-sdk = { path = "../../../agent-hooks/sdk/rust/core", features = ["tokio-timeout"], optional = true }
 lru = { workspace = true }
 rmcp = { workspace = true, features = [
     "auth",
@@ -306,6 +313,11 @@ tower = { version = "0.5.2", default-features = false, features = ["util"] }
 [[example]]
 name = "agent"
 path = "examples/agent.rs"
+
+[[example]]
+name = "agent_hooks"
+path = "examples/agent_hooks/main.rs"
+required-features = ["agent-hooks"]
 
 [[example]]
 name = "databricks_oauth"

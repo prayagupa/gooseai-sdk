@@ -793,6 +793,13 @@ impl Agent {
         // Add repetition inspector (lower priority - basic repetition checking)
         tool_inspection_manager.add_inspector(Box::new(RepetitionInspector::new(None)));
 
+        // Add the agent-hooks bridge inspector when a process-wide factory has
+        // been installed (opt-in via `goose::agent_hooks::install`).
+        #[cfg(feature = "agent-hooks")]
+        if let Some(inspector) = crate::agent_hooks::make_inspector() {
+            tool_inspection_manager.add_inspector(Box::new(inspector));
+        }
+
         tool_inspection_manager
     }
 

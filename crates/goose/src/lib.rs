@@ -7,6 +7,8 @@ pub mod acp;
 pub use goose_sdk_types::{custom_notifications, custom_requests};
 pub mod action_required_manager;
 pub mod agents;
+#[cfg(feature = "agent-hooks")]
+pub mod agent_hooks;
 pub mod builtin_extension;
 pub mod checks;
 pub mod config;

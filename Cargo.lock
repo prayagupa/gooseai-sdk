@@ -131,6 +131,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent-hooks-sdk"
+version = "0.1.0-alpha.3"
+dependencies = [
+ "async-trait",
+ "futures-util",
+ "ryu-js",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5172,6 +5186,7 @@ dependencies = [
  "agent-client-protocol",
  "agent-client-protocol-http",
  "agent-client-protocol-schema",
+ "agent-hooks-sdk",
  "anyhow",
  "arboard",
  "async-stream",
