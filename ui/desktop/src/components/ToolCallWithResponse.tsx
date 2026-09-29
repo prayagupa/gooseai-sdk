@@ -141,6 +141,9 @@ function getSubagentSessionId(
 }
 
 function getToolResultContent(toolResult: Record<string, unknown>): ContentBlock[] {
+  if (toolResult.status === 'error') {
+    return typeof toolResult.error === 'string' ? [{ type: 'text', text: toolResult.error }] : [];
+  }
   if (toolResult.status !== 'success') {
     return [];
   }
@@ -284,6 +287,7 @@ export default function ToolCallWithResponse({
             <div className="px-4 pb-2">
               <ToolApprovalButtons
                 data={{
+                  generation: confirmationContent.generation,
                   id: confirmationContent.id,
                   toolName: confirmationContent.toolName,
                   prompt: confirmationContent.prompt ?? undefined,
@@ -533,12 +537,14 @@ function ToolCallView({
   // This is a workaround for cases where the backend doesn't send tool responses
   const isStreamingComplete = !isStreamingMessage;
   const shouldShowAsComplete = isStreamingComplete && !toolResponse;
+  const toolResult = toolResponse?.toolResult as Record<string, unknown> | undefined;
+  const toolResultValue = toolResult?.value as ToolResultValue | undefined;
 
   const loadingStatus: LoadingStatus = !toolResponse
     ? shouldShowAsComplete
       ? 'success'
       : 'loading'
-    : (toolResponse.toolResult as Record<string, unknown>).status === 'error'
+    : toolResult?.status === 'error' || toolResultValue?.isError
       ? 'error'
       : 'success';
 
@@ -552,10 +558,7 @@ function ToolCallView({
     }
   }, [toolResponse, startTime]);
 
-  const toolResults =
-    loadingStatus === 'success' && toolResponse?.toolResult
-      ? getToolResultContent(toolResponse.toolResult)
-      : [];
+  const toolResults = toolResult ? getToolResultContent(toolResult) : [];
   const liveOutput = toolResponse ? '' : liveOutputToString(notifications);
 
   const logs = notifications
@@ -671,12 +674,6 @@ function ToolCallView({
         break;
       }
 
-      case 'web_scrape':
-        if (args.url) {
-          return `scraping ${getStringValue(args.url)}`;
-        }
-        break;
-
       case 'remember_memory':
         if (args.category && args.data) {
           return `storing ${getStringValue(args.category)}: ${getStringValue(args.data)}`;
@@ -694,12 +691,6 @@ function ToolCallView({
           return `capturing window "${getStringValue(args.window_title)}"`;
         }
         return `capturing screen`;
-
-      case 'automation_script':
-        if (args.language) {
-          return `running ${getStringValue(args.language)} script`;
-        }
-        break;
 
       case 'delegate': {
         if (args.instructions) {

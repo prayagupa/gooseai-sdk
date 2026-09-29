@@ -14,9 +14,13 @@ import {
   LoaderCircle,
   ExternalLink,
   Copy,
+  ChevronDown,
+  ChevronRight,
+  Clock,
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
+import { Switch } from '../ui/switch';
 import { ScrollArea } from '../ui/scroll-area';
 import { formatMessageTimestamp } from '../../utils/timeUtils';
 import { SearchView } from '../conversation/SearchView';
@@ -50,7 +54,7 @@ import {
   acpShareSessionNostr,
   type SessionListItem,
 } from '../../acp/sessions';
-import type { SessionExportFormat } from '@aaif/goose-sdk';
+import type { SessionExportFormat } from '@aaif/goose-acp-client';
 import { acpChatSessionActions } from '../../acp/chatSessionStore';
 import { cancelAcpPermissionRequestsForSession } from '../../acp/permissionRequests';
 import { cancelAcpElicitationRequestsForSession } from '../../acp/elicitationRequests';
@@ -163,7 +167,22 @@ const i18n = defineMessages({
       'Anyone with this link can fetch and decrypt the session. Treat it like a secret.',
   },
   close: { id: 'sessions.close', defaultMessage: 'Close' },
+  scheduledJobs: {
+    id: 'sessions.scheduledJobs',
+    defaultMessage: 'Scheduled Jobs',
+  },
+  scheduledJobsCount: {
+    id: 'sessions.scheduledJobsCount',
+    defaultMessage: '{count} {count, plural, one {job} other {jobs}}',
+  },
+  includeAcpSessions: {
+    id: 'sessions.includeAcp',
+    defaultMessage: 'Include ACP sessions',
+  },
+  acpBadge: { id: 'sessions.acpBadge', defaultMessage: 'ACP' },
 });
+
+const INCLUDE_ACP_SESSIONS_KEY = 'sessions_include_acp';
 
 interface EditSessionModalProps {
   session: SessionListItem | null;
@@ -314,6 +333,7 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
   const [error, setError] = useState<string | null>(null);
 
   const [visibleGroupsCount, setVisibleGroupsCount] = useState(15);
+  const [isScheduledExpanded, setIsScheduledExpanded] = useState(false);
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -331,6 +351,12 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
   const [sharingSessionId, setSharingSessionId] = useState<string | null>(null);
   const [nostrEnabled, setNostrEnabled] = useState(true);
 
+  const [includeAcpSessions, setIncludeAcpSessions] = useState(
+    () => localStorage.getItem(INCLUDE_ACP_SESSIONS_KEY) === 'true'
+  );
+  const includeAcpSessionsRef = useRef(includeAcpSessions);
+  includeAcpSessionsRef.current = includeAcpSessions;
+
   // Search state for debouncing
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300); // 300ms debounce
@@ -343,9 +369,20 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const memoizedAllDateGroups = useMemo(() => {
+    if (sessions.length > 0) {
+      return groupSessionsByDate(sessions);
+    }
+    return [];
+  }, [sessions]);
+
+  const activeDateGroups = useMemo(() => {
+    return debouncedSearchTerm.length > 0 ? memoizedAllDateGroups : dateGroups;
+  }, [debouncedSearchTerm, memoizedAllDateGroups, dateGroups]);
+
   const visibleDateGroups = useMemo(() => {
-    return dateGroups.slice(0, visibleGroupsCount);
-  }, [dateGroups, visibleGroupsCount]);
+    return activeDateGroups.slice(0, visibleGroupsCount);
+  }, [activeDateGroups, visibleGroupsCount]);
 
   const previousSearchTermRef = useRef('');
   useEffect(() => {
@@ -354,20 +391,20 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
     previousSearchTermRef.current = debouncedSearchTerm;
 
     if (isSearching) {
-      setVisibleGroupsCount(dateGroups.length);
+      setVisibleGroupsCount(memoizedAllDateGroups.length);
     } else if (wasSearching) {
       setVisibleGroupsCount(15);
     }
-  }, [debouncedSearchTerm, dateGroups.length]);
+  }, [debouncedSearchTerm, memoizedAllDateGroups.length]);
 
   const loadRemainingSessionPages = useCallback(
-    async (initialCursor: string, loadId: number, keyword?: string) => {
+    async (initialCursor: string, loadId: number, keyword: string, includeAcp: boolean) => {
       let cursor: string | null = initialCursor;
       setIsPrefetchingSessions(true);
 
       try {
         while (cursor && loadGenerationRef.current === loadId) {
-          const resp = await acpListSessions(cursor, { keyword });
+          const resp = await acpListSessions(cursor, { keyword, includeAcp });
           if (loadGenerationRef.current !== loadId) return;
 
           cursor = resp.nextCursor;
@@ -390,7 +427,10 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
   );
 
   const loadSessions = useCallback(
-    async (keyword: string = debouncedSearchTermRef.current) => {
+    async (
+      keyword: string = debouncedSearchTermRef.current,
+      includeAcp: boolean = includeAcpSessionsRef.current
+    ) => {
       const loadId = loadGenerationRef.current + 1;
       loadGenerationRef.current = loadId;
       // Only show the skeleton on the first load; subsequent loads (e.g. typing a
@@ -404,7 +444,7 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
         setShowContent(false);
       }
       try {
-        const resp = await acpListSessions(undefined, { keyword });
+        const resp = await acpListSessions(undefined, { keyword, includeAcp });
         if (loadGenerationRef.current !== loadId) return;
         hasLoadedRef.current = true;
 
@@ -413,7 +453,7 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
         });
 
         if (resp.nextCursor) {
-          void loadRemainingSessionPages(resp.nextCursor, loadId, keyword);
+          void loadRemainingSessionPages(resp.nextCursor, loadId, keyword, includeAcp);
         }
       } catch (err) {
         if (loadGenerationRef.current !== loadId) return;
@@ -437,20 +477,20 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
 
       if (scrollHeight - scrollTop - clientHeight >= threshold) return;
 
-      if (visibleGroupsCount < dateGroups.length) {
-        setVisibleGroupsCount((prev) => Math.min(prev + 5, dateGroups.length));
+      if (visibleGroupsCount < activeDateGroups.length) {
+        setVisibleGroupsCount((prev) => Math.min(prev + 5, activeDateGroups.length));
       }
     },
-    [visibleGroupsCount, dateGroups.length]
+    [visibleGroupsCount, activeDateGroups.length]
   );
 
   useEffect(() => {
-    loadSessions(debouncedSearchTerm);
+    loadSessions(debouncedSearchTerm, includeAcpSessions);
     return () => {
       // Bump the generation so any in-flight load for the previous keyword is discarded.
       loadGenerationRef.current += 1;
     };
-  }, [loadSessions, debouncedSearchTerm]);
+  }, [loadSessions, debouncedSearchTerm, includeAcpSessions]);
 
   // Hide Nostr sharing when explicitly disabled via env var (restricted/enterprise bundles)
   useEffect(() => {
@@ -474,13 +514,32 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
     return () => void 0;
   }, [isLoading, showSkeleton]);
 
-  // Memoize date groups calculation to prevent unnecessary recalculations
+  const { humanSessions, scheduledSessions } = useMemo(() => {
+    const human: SessionListItem[] = [];
+    const scheduled: SessionListItem[] = [];
+    for (const s of sessions) {
+      if (s.sessionType === 'scheduled') {
+        scheduled.push(s);
+      } else {
+        human.push(s);
+      }
+    }
+    return { humanSessions: human, scheduledSessions: scheduled };
+  }, [sessions]);
+
   const memoizedDateGroups = useMemo(() => {
-    if (sessions.length > 0) {
-      return groupSessionsByDate(sessions);
+    if (humanSessions.length > 0) {
+      return groupSessionsByDate(humanSessions);
     }
     return [];
-  }, [sessions]);
+  }, [humanSessions]);
+
+  const memoizedScheduledDateGroups = useMemo(() => {
+    if (scheduledSessions.length > 0) {
+      return groupSessionsByDate(scheduledSessions);
+    }
+    return [];
+  }, [scheduledSessions]);
 
   // Update date groups when filtered sessions change
   useEffect(() => {
@@ -492,6 +551,11 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
   // Handle immediate search input (updates search term for debouncing).
   const handleSearch = useCallback((term: string) => {
     setSearchTerm(term);
+  }, []);
+
+  const handleIncludeAcpSessionsChange = useCallback((checked: boolean) => {
+    localStorage.setItem(INCLUDE_ACP_SESSIONS_KEY, String(checked));
+    setIncludeAcpSessions(checked);
   }, []);
 
   // Handle modal close
@@ -785,6 +849,11 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
       >
         <div>
           <h3 className="text-base break-words line-clamp-2 w-full mb-1">{displayName}</h3>
+          {session.sessionType === 'acp' && (
+            <span className="text-xs text-text-tertiary bg-background-secondary px-2 py-0.5 rounded-full">
+              {intl.formatMessage(i18n.acpBadge)}
+            </span>
+          )}
           <div className="flex-1 mt-2">
             <div className="flex items-center text-text-secondary text-xs">
               <Calendar className="w-3 h-3 mr-1 flex-shrink-0" />
@@ -972,6 +1041,61 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
           </div>
         ))}
 
+        {!debouncedSearchTerm &&
+          visibleGroupsCount >= activeDateGroups.length &&
+          memoizedScheduledDateGroups.length > 0 && (
+            <div className="space-y-4">
+            <button
+              onClick={() => setIsScheduledExpanded((v) => !v)}
+              aria-expanded={isScheduledExpanded}
+              aria-controls="scheduled-job-sessions"
+              className="sticky top-0 z-10 w-full flex items-center justify-between bg-background-primary/95 backdrop-blur-sm py-2 px-1 rounded-lg hover:bg-background-secondary transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-text-secondary" />
+                <h2 className="text-text-secondary font-medium">
+                  {intl.formatMessage(i18n.scheduledJobs)}
+                </h2>
+                <span className="text-xs text-text-tertiary bg-background-secondary px-2 py-0.5 rounded-full">
+                  {intl.formatMessage(i18n.scheduledJobsCount, { count: scheduledSessions.length })}
+                </span>
+              </div>
+              {isScheduledExpanded ? (
+                <ChevronDown className="w-4 h-4 text-text-secondary" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-text-secondary" />
+              )}
+            </button>
+
+            {isScheduledExpanded && (
+              <div id="scheduled-job-sessions" className="space-y-8">
+                {memoizedScheduledDateGroups.map((group) => (
+                  <div key={group.label} className="space-y-4">
+                    <div className="sticky top-0 z-10 bg-background-primary/95 backdrop-blur-sm">
+                      <h2 className="text-text-secondary">{group.label}</h2>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                      {group.sessions.map((session) => (
+                        <SessionItem
+                          key={session.id}
+                          session={session}
+                          onEditClick={handleEditSession}
+                          onDuplicateClick={handleDuplicateSession}
+                          onDeleteClick={handleDeleteSession}
+                          onExportClick={handleExportSession}
+                          onShareClick={handleShareSessionNostr}
+                          onOpenInNewWindow={handleOpenInNewWindow}
+                          isSharing={sharingSessionId === session.id}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            </div>
+          )}
+
         {isPrefetchingSessions && (
           <div className="flex justify-center py-8">
             <div className="flex items-center space-x-2 text-text-secondary">
@@ -1018,6 +1142,14 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(({ onSelectSe
               <p className="text-sm text-text-secondary mb-4">
                 {intl.formatMessage(i18n.chatHistoryDesc, { shortcut: getSearchShortcutText() })}
               </p>
+              <label className="flex items-center gap-2 text-sm text-text-secondary mb-4 cursor-pointer w-fit">
+                <Switch
+                  variant="mono"
+                  checked={includeAcpSessions}
+                  onCheckedChange={handleIncludeAcpSessionsChange}
+                />
+                {intl.formatMessage(i18n.includeAcpSessions)}
+              </label>
             </div>
           </div>
 

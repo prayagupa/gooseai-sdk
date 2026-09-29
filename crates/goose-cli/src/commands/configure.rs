@@ -6,7 +6,7 @@ use goose::agents::extension_manager::get_parameter_names;
 use goose::agents::Agent;
 use goose::agents::{extension::Envs, ExtensionConfig};
 use goose::config::declarative_providers::{
-    create_custom_provider, remove_custom_provider, CreateCustomProviderParams,
+    create_custom_provider, remove_custom_provider, AuthConfig, CreateCustomProviderParams,
 };
 use goose::config::extensions::{
     get_all_extension_names, get_all_extensions, get_enabled_extensions, get_extension_by_name,
@@ -809,14 +809,16 @@ pub async fn configure_provider_dialog() -> anyhow::Result<bool> {
     // Get global config instance
     let config = Config::global();
 
-    // Get all available providers and their metadata
+    let current_provider: Option<String> = config.get_goose_provider().ok();
     let mut available_providers = providers().await;
+    available_providers.retain(|(provider, _)| {
+        provider.deprecated.is_none() || current_provider.as_deref() == Some(&provider.name)
+    });
 
     // Sort providers alphabetically by display name
     available_providers.sort_by(|a, b| a.0.display_name.cmp(&b.0.display_name));
 
     // Get current default provider if it exists
-    let current_provider: Option<String> = config.get_goose_provider().ok();
     let current_provider_index = current_provider.as_ref().and_then(|current_provider| {
         available_providers
             .iter()
@@ -837,15 +839,27 @@ pub async fn configure_provider_dialog() -> anyhow::Result<bool> {
     let provider_items: Vec<ProviderItem> = available_providers
         .iter()
         .map(|(p, _)| {
-            (
-                p.name.clone(),
-                p.display_name.clone(),
-                p.description.clone(),
-            )
+            let description = match p
+                .deprecated
+                .as_ref()
+                .and_then(|deprecated| deprecated.replacement.as_deref())
+            {
+                Some(replacement) => {
+                    format!("{} Deprecated; use {replacement} instead.", p.description)
+                }
+                None => p.description.clone(),
+            };
+            (p.name.clone(), p.display_name.clone(), description)
         })
         .collect();
 
-    let default_provider = current_provider.unwrap_or_default();
+    let default_provider = current_provider
+        .filter(|current_provider| {
+            available_providers
+                .iter()
+                .any(|(provider, _)| &provider.name == current_provider)
+        })
+        .unwrap_or_default();
 
     // cliclack 0.5.5 does not reset its private list offset when filtering a
     // paginated select, so use a separate fuzzy-search step for long lists.
@@ -1307,6 +1321,9 @@ fn configure_streamable_http_extension() -> anyhow::Result<()> {
             description,
             timeout: Some(timeout),
             socket: None,
+            client_id: None,
+            client_secret_key: None,
+            scopes: vec![],
             bundled: None,
             available_tools: Vec::new(),
         },
@@ -2181,11 +2198,68 @@ fn add_provider() -> anyhow::Result<()> {
         .initial_value(true)
         .interact()?;
 
-    let api_key: String = if requires_auth {
-        cliclack::password("API key:").mask('▪').interact()?
-    } else {
-        String::new()
-    };
+    let mut api_key = String::new();
+    let mut auth: Option<AuthConfig> = None;
+
+    if requires_auth {
+        let auth_mode = cliclack::select("How should goose obtain credentials for this provider?")
+            .item("static", "Static API key", "Enter a fixed API key now")
+            .item(
+                "command",
+                "Command (refreshable)",
+                "Run a command to fetch/refresh a short-lived credential",
+            )
+            .interact()?;
+
+        if auth_mode == "command" {
+            let command: String = cliclack::input("Command to run for the credential:")
+                .placeholder("/path/to/get-token.sh")
+                .validate(|input: &String| {
+                    if input.trim().is_empty() {
+                        Err("Please enter a command")
+                    } else {
+                        Ok(())
+                    }
+                })
+                .interact()?;
+
+            let args_input: String =
+                cliclack::input("Command arguments (comma-separated, optional):")
+                    .placeholder("--flag, value")
+                    .required(false)
+                    .interact()?;
+            let args: Vec<String> = args_input
+                .split(',')
+                .map(str::trim)
+                .filter(|arg| !arg.is_empty())
+                .map(str::to_string)
+                .collect();
+
+            let refresh_interval_input: String = cliclack::input(
+                "Refresh interval in seconds (0 to only refresh after an auth failure):",
+            )
+            .default_input("3600")
+            .validate(|input: &String| {
+                input
+                    .trim()
+                    .parse::<u64>()
+                    .map(|_| ())
+                    .map_err(|_| "Please enter a whole number of seconds")
+            })
+            .interact()?;
+            let refresh_interval: u64 = refresh_interval_input.trim().parse().unwrap_or(3600);
+
+            auth = Some(AuthConfig {
+                command,
+                args,
+                refresh_interval,
+                timeout_seconds: None,
+                cwd: None,
+            });
+        } else {
+            api_key = cliclack::password("API key:").mask('▪').interact()?;
+        }
+    }
 
     let models_input: String = cliclack::input("Available models (separate with commas):")
         .placeholder("model-a, model-b, model-c")
@@ -2198,10 +2272,11 @@ fn add_provider() -> anyhow::Result<()> {
         })
         .interact()?;
 
-    let models: Vec<String> = models_input
+    let models: Vec<goose_providers::base::ModelInfo> = models_input
         .split(',')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(goose_providers::base::ModelInfo::new)
         .collect();
 
     let supports_streaming = cliclack::confirm("Does this provider support streaming responses?")
@@ -2232,7 +2307,9 @@ fn add_provider() -> anyhow::Result<()> {
         requires_auth,
         catalog_provider_id: None,
         base_path,
+        toolshim: false,
         preserves_thinking: None,
+        auth,
     })?;
 
     if !provider_config.models.is_empty() {

@@ -36,15 +36,38 @@ async fn provider_lifecycle() -> Result<()> {
                 .with_image(image_data, "image/png"),
         )
         .await?;
-    result.assert_message(2, Agent, "The image is suitable. I will add one.");
     result.assert_message(
-        3,
+        2,
         Thinking,
         "I should inspect the image before calculating.",
     );
+    result.assert_message(3, Agent, "The image is suitable. I will add one.");
     result.assert_message(4, ToolCall, ADD);
     result.assert_message(5, ToolResponse, "result: 1");
     result.assert_message(-1, Agent, "The total is 1.");
+    let tool_turn = result
+        .conversation()
+        .messages()
+        .iter()
+        .find(|message| {
+            message
+                .content
+                .iter()
+                .any(|content| matches!(content, MessageContent::ToolRequest(_)))
+        })
+        .expect("tool-call assistant message");
+    assert!(
+        matches!(
+            tool_turn.content.as_slice(),
+            [
+                MessageContent::Thinking(_),
+                MessageContent::Text(_),
+                MessageContent::ToolRequest(_)
+            ]
+        ),
+        "thinking, text, and the tool call must stay one message in model order: {:#?}",
+        tool_turn.content
+    );
     assert!(result
         .conversation()
         .messages()
@@ -174,20 +197,15 @@ async fn provider_lifecycle() -> Result<()> {
     result.assert_message(-2, ToolResponse, "result: 6");
     result.assert_message(-1, Agent, "The total is 6.");
 
-    let conversation = result.session.conversation.as_ref().unwrap();
-    let first_total = result
+    assert!(result.session.usage.total_tokens.is_none());
+    assert!(result
         .session
-        .usage
-        .total_tokens
-        .expect("estimated session usage");
-    assert!(first_total > 0);
-    assert_eq!(
-        conversation
-            .last()
-            .and_then(|message| message.metadata.usage.as_ref())
-            .and_then(|usage| usage.total_tokens),
-        Some(first_total)
-    );
+        .conversation
+        .as_ref()
+        .and_then(Conversation::last)
+        .and_then(|message| message.metadata.usage.as_ref())
+        .and_then(|usage| usage.total_tokens)
+        .is_none());
 
     api.on("return no choices").no_choices();
     let result = pipeline.run(["return no choices"]).await?;
@@ -224,11 +242,7 @@ async fn provider_lifecycle() -> Result<()> {
         .reply("recovered from server error");
     let result = pipeline.run(["after server error"]).await?;
     result.assert_message(-1, Agent, "recovered from server error");
-    assert!(result
-        .session
-        .usage
-        .total_tokens
-        .is_some_and(|total| total > first_total));
+    assert!(result.session.usage.total_tokens.is_none());
     assert!(api
         .calls()
         .iter()
@@ -317,5 +331,25 @@ async fn usage_and_provider_errors_survive_persistence() -> Result<()> {
     assert!(error.is_user_visible());
     assert!(!error.is_agent_visible());
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn requested_model_is_recorded_without_resolved_model() -> Result<()> {
+    let (pipeline, api) = test_pipeline().await?;
+    api.on("hello").reply("hi there");
+
+    let result = pipeline.run(["hello"]).await?;
+    let requested_model = &result.session.model_config.as_ref().unwrap().model_name;
+    let inference = result
+        .conversation()
+        .messages()
+        .iter()
+        .find(|message| message.role == rmcp::model::Role::Assistant)
+        .and_then(|message| message.metadata.inference.as_ref())
+        .expect("assistant inference metadata");
+
+    assert_eq!(&inference.requested_model, requested_model);
+    assert_eq!(inference.resolved_model, None);
     Ok(())
 }

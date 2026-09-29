@@ -1,3 +1,11 @@
+// On riscv64, update() bails early because no release artifacts are published,
+// so the implementation below (and most of this module) is cfg-disabled and
+// would otherwise trigger dead_code/unused warnings that fail clippy.
+#![cfg_attr(
+    target_arch = "riscv64",
+    allow(dead_code, unused_imports, unused_variables)
+)]
+
 use anyhow::{bail, Context, Result};
 use reqwest::{
     header::{HeaderValue, AUTHORIZATION},
@@ -37,6 +45,12 @@ fn asset_name() -> &'static str {
     #[cfg(all(target_os = "linux", target_arch = "aarch64", target_env = "musl"))]
     {
         "goose-aarch64-unknown-linux-musl.tar.bz2"
+    }
+    // RISC-V builds compile with this asset name, but update() rejects the
+    // platform until release artifacts are published. See update() below.
+    #[cfg(all(target_os = "linux", target_arch = "riscv64", target_env = "gnu"))]
+    {
+        "goose-riscv64gc-unknown-linux-gnu.tar.bz2"
     }
     #[cfg(all(target_os = "windows", target_arch = "x86_64", feature = "cuda"))]
     {
@@ -78,7 +92,10 @@ struct AttestationResponse {
 
 #[derive(serde::Deserialize)]
 struct AttestationEntry {
-    bundle: serde_json::Value,
+    #[serde(default)]
+    bundle: Option<serde_json::Value>,
+    #[serde(default)]
+    bundle_url: Option<String>,
 }
 
 const GITHUB_ACTIONS_ISSUER: &str = "https://token.actions.githubusercontent.com";
@@ -134,7 +151,53 @@ async fn fetch_attestations(digest: &str, token: Option<&str>) -> Result<Vec<ser
         .await
         .context("Failed to parse attestation response")?;
 
-    Ok(body.attestations.into_iter().map(|a| a.bundle).collect())
+    // GitHub no longer embeds bundles in attestation list responses; they are
+    // served from blob storage via bundle_url instead.
+    let mut bundles = Vec::with_capacity(body.attestations.len());
+    for entry in body.attestations {
+        match (entry.bundle, entry.bundle_url) {
+            (Some(bundle), _) if !bundle.is_null() => bundles.push(bundle),
+            (_, Some(url)) => bundles.push(fetch_bundle(&client, &url).await?),
+            _ => bail!("Attestation has neither a bundle nor a bundle URL"),
+        }
+    }
+
+    Ok(bundles)
+}
+
+// The bundle URL is pre-signed for blob storage, so no API credentials are sent.
+async fn fetch_bundle(client: &reqwest::Client, url: &str) -> Result<serde_json::Value> {
+    let resp = client
+        .get(url)
+        .header("User-Agent", "goose-cli")
+        .send()
+        .await
+        .context("Failed to fetch attestation bundle")?;
+
+    if !resp.status().is_success() {
+        bail!(
+            "Attestation bundle download returned HTTP {}",
+            resp.status()
+        );
+    }
+
+    let body = resp
+        .bytes()
+        .await
+        .context("Failed to read attestation bundle")?;
+    parse_bundle_bytes(&body)
+}
+
+fn parse_bundle_bytes(body: &[u8]) -> Result<serde_json::Value> {
+    if let Ok(bundle) = serde_json::from_slice(body) {
+        return Ok(bundle);
+    }
+
+    // Offloaded bundles are served as snappy-compressed JSON.
+    let decompressed = snap::raw::Decoder::new()
+        .decompress_vec(body)
+        .context("Failed to decompress attestation bundle")?;
+    serde_json::from_slice(&decompressed).context("Failed to parse attestation bundle")
 }
 
 async fn fetch_attestations_response(
@@ -169,10 +232,6 @@ fn verify_bundle(
 
     let result = sigstore_verify::verify(artifact_digest, &bundle, policy, trusted_root)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-    if !result.success {
-        bail!("Verification unsuccessful");
-    }
 
     let identity = result
         .identity
@@ -252,7 +311,14 @@ pub async fn update(canary: bool, reconfigure: bool) -> Result<()> {
         bail!("Update is disabled in this build.");
     }
 
-    #[cfg(not(feature = "disable-update"))]
+    // RISC-V release artifacts are not published yet, so reject self-update
+    // rather than downloading a nonexistent asset.
+    #[cfg(all(target_arch = "riscv64", not(feature = "disable-update")))]
+    {
+        bail!("Self-update is not supported on riscv64: no release artifacts are published for this platform.");
+    }
+
+    #[cfg(all(not(target_arch = "riscv64"), not(feature = "disable-update")))]
     {
         let tag = if canary { "canary" } else { "stable" };
         let asset = asset_name();
@@ -807,6 +873,56 @@ mod tests {
             StatusCode::UNAUTHORIZED,
             None
         ));
+    }
+
+    #[test]
+    fn test_attestation_entry_parses_embedded_bundle() {
+        let response: AttestationResponse = serde_json::from_str(
+            r#"{"attestations":[{"repository_id":1,"bundle":{"mediaType":"application/vnd.dev.sigstore.bundle.v0.3+json"}}]}"#,
+        )
+        .unwrap();
+        assert!(response.attestations[0].bundle.is_some());
+        assert!(response.attestations[0].bundle_url.is_none());
+    }
+
+    #[test]
+    fn test_attestation_entry_parses_offloaded_bundle() {
+        let response: AttestationResponse = serde_json::from_str(
+            r#"{"attestations":[{"repository_id":1,"bundle_url":"https://example.com/bundle.json.sn","initiator":"user","bundle":null}]}"#,
+        )
+        .unwrap();
+        assert!(response.attestations[0].bundle.is_none());
+        assert_eq!(
+            response.attestations[0].bundle_url.as_deref(),
+            Some("https://example.com/bundle.json.sn")
+        );
+    }
+
+    #[test]
+    fn test_parse_bundle_bytes_plain_json() {
+        let bundle =
+            parse_bundle_bytes(br#"{"mediaType":"application/vnd.dev.sigstore.bundle.v0.3+json"}"#)
+                .unwrap();
+        assert_eq!(
+            bundle["mediaType"],
+            "application/vnd.dev.sigstore.bundle.v0.3+json"
+        );
+    }
+
+    #[test]
+    fn test_parse_bundle_bytes_snappy_compressed() {
+        let json = br#"{"mediaType":"application/vnd.dev.sigstore.bundle.v0.3+json"}"#;
+        let compressed = snap::raw::Encoder::new().compress_vec(json).unwrap();
+        let bundle = parse_bundle_bytes(&compressed).unwrap();
+        assert_eq!(
+            bundle["mediaType"],
+            "application/vnd.dev.sigstore.bundle.v0.3+json"
+        );
+    }
+
+    #[test]
+    fn test_parse_bundle_bytes_rejects_garbage() {
+        assert!(parse_bundle_bytes(&[0xff, 0x00, 0x12]).is_err());
     }
 
     // -----------------------------------------------------------------------

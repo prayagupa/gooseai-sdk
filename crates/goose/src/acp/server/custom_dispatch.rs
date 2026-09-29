@@ -4,7 +4,8 @@ use goose_acp_macros::custom_methods;
 #[custom_methods]
 impl GooseAcpAgent {
     pub async fn dispatch_custom_request(
-        &self,
+        self: &Arc<Self>,
+        cx: &ConnectionTo<Client>,
         method: &str,
         params: serde_json::Value,
     ) -> Result<serde_json::Value, agent_client_protocol::Error> {
@@ -18,7 +19,7 @@ impl GooseAcpAgent {
                 });
             }
 
-            self.handle_custom_request(method, params).await
+            self.handle_custom_request(cx, method, params).await
         }
         .await;
 
@@ -133,6 +134,31 @@ impl GooseAcpAgent {
         self.on_steer_session(req).await
     }
 
+    #[custom_method(LiveVoiceAvailabilityRequest)]
+    async fn dispatch_live_voice_availability(
+        &self,
+        req: LiveVoiceAvailabilityRequest,
+    ) -> Result<LiveVoiceAvailabilityResponse, agent_client_protocol::Error> {
+        self.on_live_voice_availability(req).await
+    }
+
+    #[custom_method(LiveVoiceStartRequest)]
+    async fn dispatch_live_voice_start(
+        self: &Arc<Self>,
+        cx: &ConnectionTo<Client>,
+        req: LiveVoiceStartRequest,
+    ) -> Result<LiveVoiceStartResponse, agent_client_protocol::Error> {
+        self.on_live_voice_start(cx, req).await
+    }
+
+    #[custom_method(LiveVoiceStopRequest)]
+    async fn dispatch_live_voice_stop(
+        &self,
+        req: LiveVoiceStopRequest,
+    ) -> Result<EmptyResponse, agent_client_protocol::Error> {
+        self.on_live_voice_stop(req).await
+    }
+
     #[custom_method(DiagnosticsGetRequest)]
     async fn dispatch_get_diagnostics(
         &self,
@@ -173,26 +199,11 @@ impl GooseAcpAgent {
         self.on_reset_prompt(req).await
     }
 
-    #[custom_method(DeleteSessionRequest)]
-    async fn dispatch_delete_session(
-        &self,
-        req: DeleteSessionRequest,
-    ) -> Result<EmptyResponse, agent_client_protocol::Error> {
-        self.on_delete_session(req).await
-    }
-
     #[custom_method(GetConfigExtensionsRequest)]
     async fn dispatch_get_config_extensions(
         &self,
     ) -> Result<GetConfigExtensionsResponse, agent_client_protocol::Error> {
         self.on_get_config_extensions().await
-    }
-
-    #[custom_method(GetAvailableExtensionsRequest)]
-    async fn dispatch_get_available_extensions(
-        &self,
-    ) -> Result<GetAvailableExtensionsResponse, agent_client_protocol::Error> {
-        self.on_get_available_extensions().await
     }
 
     #[custom_method(AddConfigExtensionRequest)]
@@ -307,6 +318,14 @@ impl GooseAcpAgent {
         self.on_refresh_provider_inventory(req).await
     }
 
+    #[custom_method(ProviderReadinessCheckRequest)]
+    async fn dispatch_check_provider_readiness(
+        &self,
+        req: ProviderReadinessCheckRequest,
+    ) -> Result<ProviderReadinessCheckResponse, agent_client_protocol::Error> {
+        self.on_check_provider_readiness(req).await
+    }
+
     #[custom_method(ProviderConfigReadRequest)]
     async fn dispatch_read_provider_config(
         &self,
@@ -385,14 +404,6 @@ impl GooseAcpAgent {
         req: PreferencesSaveRequest,
     ) -> Result<EmptyResponse, agent_client_protocol::Error> {
         self.on_preferences_save(req).await
-    }
-
-    #[custom_method(PreferencesRemoveRequest)]
-    async fn dispatch_preferences_remove(
-        &self,
-        req: PreferencesRemoveRequest,
-    ) -> Result<EmptyResponse, agent_client_protocol::Error> {
-        self.on_preferences_remove(req).await
     }
 
     #[custom_method(ConfigReadRequest)]
@@ -779,22 +790,6 @@ impl GooseAcpAgent {
         self.on_dictation_config(_req).await
     }
 
-    #[custom_method(DictationSecretSaveRequest)]
-    async fn dispatch_dictation_secret_save(
-        &self,
-        req: DictationSecretSaveRequest,
-    ) -> Result<EmptyResponse, agent_client_protocol::Error> {
-        self.on_dictation_secret_save(req).await
-    }
-
-    #[custom_method(DictationSecretDeleteRequest)]
-    async fn dispatch_dictation_secret_delete(
-        &self,
-        req: DictationSecretDeleteRequest,
-    ) -> Result<EmptyResponse, agent_client_protocol::Error> {
-        self.on_dictation_secret_delete(req).await
-    }
-
     #[custom_method(DictationModelsListRequest)]
     async fn dispatch_dictation_models_list(
         &self,
@@ -833,14 +828,6 @@ impl GooseAcpAgent {
         _req: DictationModelDeleteRequest,
     ) -> Result<EmptyResponse, agent_client_protocol::Error> {
         self.on_dictation_model_delete(_req).await
-    }
-
-    #[custom_method(DictationModelSelectRequest)]
-    async fn dispatch_dictation_model_select(
-        &self,
-        req: DictationModelSelectRequest,
-    ) -> Result<EmptyResponse, agent_client_protocol::Error> {
-        self.on_dictation_model_select(req).await
     }
 
     #[custom_method(LocalInferenceModelsListRequest)]

@@ -19,15 +19,22 @@ path = "src/main.rs"
 name = "generate_manpages"
 path = "src/bin/generate_manpages.rs"
 
+[[bin]]
+name = "mcp_conformance_driver"
+path = "src/bin/mcp_conformance_driver.rs"
+
 [dependencies]
 clap_mangen = { version = "0.3", default-features = false }
 goose = { path = "../goose", default-features = false }
-goose-mcp = { path = "../goose-mcp", default-features = false }
+agent-client-protocol = { workspace = true, features = ["unstable"], optional = true }
+goose-mcp = { path = "../goose-mcp", default-features = false, optional = true }
 goose-providers = { path = "../goose-providers", default-features = false }
+goose-roaming = { path = "../goose-roaming", optional = true }
 rmcp = { workspace = true }
 clap = { workspace = true }
 cliclack = { version = "0.5", default-features = false }
 console = { version = "0.16", default-features = false, features = ["std"] }
+unicode-segmentation = { version = "1.12", default-features = false }
 dotenvy = { workspace = true }
 bat = { version = "0.26", default-features = false, features = ["regex-onig"] }
 anyhow = { workspace = true }
@@ -61,15 +68,19 @@ open = { version = "5", default-features = false }
 url = { workspace = true }
 urlencoding = { workspace = true }
 clap_complete = { version = "4", default-features = false }
-comfy-table = { version = "7", default-features = false }
+comfy-table = { version = "8", default-features = false }
 sha2 = { workspace = true }
-sigstore-verify = { version = "0.10", default-features = false, optional = true }
+sigstore-verify = { version = "0.11", default-features = false, optional = true }
+snap = { workspace = true, optional = true }
 axum.workspace = true
-axum-server = { version = "0.8", default-features = false, optional = true }
+axum-server = { workspace = true, optional = true }
 clap_complete_nushell = { version = "4", default-features = false }
+qrcode = { version = "0.14.1", optional = true }
+fs2 = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 anstream = { version = "1", default-features = false, features = ["wincon"] }
+ntapi = { version = "0.4.3", default-features = false, features = ["user"] }
 winapi = { workspace = true, features = [
     "consoleapi",
     "processenv",
@@ -77,20 +88,34 @@ winapi = { workspace = true, features = [
     "wincon",
 ] }
 
+[target."cfg(unix)".dependencies]
+libc = { version = "0.2.182", default-features = false, features = ["std"] }
+
 [features]
 default = [
     "code-mode",
+    "tree-sitter",
     "local-inference",
-    "tui",
     "aws-providers",
     "telemetry",
     "nostr",
     "otel",
     "rustls-tls",
+    "live-voice",
     "system-keyring",
     "update",
+    "bundled-mcp",
+    "scheduler",
+    "platform-apps",
+    "chat-recall",
+    "acp-http",
+    "online-model-meta",
 ]
+online-model-meta = ["goose/online-model-meta"]
+roaming = ["dep:goose-roaming", "dep:qrcode", "dep:fs2", "dep:agent-client-protocol"]
 code-mode = ["goose/code-mode"]
+tree-sitter = ["goose/tree-sitter"]
+live-voice = ["goose/live-voice"]
 local-inference = ["goose/local-inference"]
 aws-providers = ["goose/aws-providers"]
 cuda = ["goose/cuda", "local-inference"]
@@ -100,9 +125,25 @@ telemetry = ["goose/telemetry"]
 nostr = ["goose/nostr"]
 otel = ["goose/otel"]
 system-keyring = ["goose/system-keyring"]
-tui = []
-update = ["dep:sigstore-verify"]
-portable-default = ["rustls-tls", "aws-providers", "telemetry", "otel", "tui"]
+update = ["dep:sigstore-verify", "dep:snap"]
+bundled-mcp = ["dep:goose-mcp", "goose-mcp/bundled-mcp"]
+scheduler = ["goose/scheduler"]
+platform-apps = ["goose/platform-apps"]
+chat-recall = ["goose/chat-recall"]
+acp-http = ["goose/acp-http"]
+portable-default = [
+    "rustls-tls",
+    "tree-sitter",
+    "live-voice",
+    "aws-providers",
+    "telemetry",
+    "otel",
+    "bundled-mcp",
+    "scheduler",
+    "platform-apps",
+    "chat-recall",
+    "acp-http",
+]
 # disables the update command
 disable-update = []
 rustls-tls = [
@@ -111,7 +152,7 @@ rustls-tls = [
     "axum-server/tls-rustls",
     "sigstore-verify?/rustls",
     "goose/rustls-tls",
-    "goose-mcp/rustls-tls",
+    "goose-mcp?/rustls-tls",
     "goose-providers/rustls-tls",
 ]
 native-tls = [
@@ -120,10 +161,9 @@ native-tls = [
     "axum-server/tls-openssl",
     "sigstore-verify?/native-tls",
     "goose/native-tls",
-    "goose-mcp/native-tls",
+    "goose-mcp?/native-tls",
     "goose-providers/native-tls",
 ]
-
 [dev-dependencies]
 env-lock.workspace = true
 tempfile = { workspace = true }

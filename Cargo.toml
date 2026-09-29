@@ -8,7 +8,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2021"
-version = "1.45.0"
+version = "1.52.0"
 rust-version = "1.94.1"
 authors = ["AAIF <ai-oss-tools@block.xyz>"]
 license = "Apache-2.0"
@@ -20,22 +20,23 @@ uninlined_format_args = "allow"
 string_slice = "warn"
 
 [workspace.dependencies]
-rmcp = { version = "3.0.0", default-features = false, features = ["schemars", "auth"] }
-agent-client-protocol-schema = { version = "1.1", default-features = false, features = ["unstable"] }
-agent-client-protocol = { version = "1.0", default-features = false }
-agent-client-protocol-http = { version = "1.0", default-features = false, features = ["server", "unstable_cancel_request"] }
+rmcp = { version = "3.4.1", default-features = false, features = ["schemars"] }
+agent-client-protocol-schema = { version = "=1.9.1", default-features = false }
+agent-client-protocol = { version = "2.2.0", default-features = false }
+agent-client-protocol-http = { version = "2.2.0", default-features = false }
 arboard = { version = "3", default-features = false }
 anyhow = { version = "1.0.102", default-features = false, features = ["std"] }
 async-stream = { version = "0.3.6", default-features = false }
 async-trait = { version = "0.1.89", default-features = false }
 axum = { version = "0.8", default-features = false, features = ["http1", "http2", "json", "tokio", "query"] }
+axum-server = { version = "0.8", default-features = false }
 base64 = { version = "0.23.0", default-features = false, features = ["std"] }
 bytes = { version = "1.10.1", default-features = false, features = ["std"] }
 candle-core = { version = "0.11", default-features = false }
 candle-nn = { version = "0.11", default-features = false }
 chrono = { version = "0.4.44", default-features = false, features = ["serde", "std"] }
 clap = { version = "4.1.14", default-features = false, features = ["derive", "std", "help", "suggestions", "usage", "color", "error-context"] }
-dirs = { version = "6", default-features = false }
+dirs = { version = "7", default-features = false }
 dotenvy = { version = "0.15.7", default-features = false }
 env-lock = { version = "1", default-features = false }
 etcetera = { version = "0.11", default-features = false }
@@ -45,6 +46,8 @@ http = { version = "1.1", default-features = false, features = ["std"] }
 ignore = { version = "0.4.12", default-features = false }
 include_dir = { version = "0.7", default-features = false }
 indoc = { version = "2", default-features = false }
+iroh = { version = "1.2.0", default-features = false }
+iroh-relay = { version = "1", default-features = false }
 keyring = { version = "3.6.3", default-features = false, features = ["vendored"] }
 lru = { version = "0.18", default-features = false }
 once_cell = { version = "1.21.3", default-features = false, features = ["std"] }
@@ -75,9 +78,10 @@ which = { version = "8", default-features = false, features = ["real-sys"] }
 winapi = { version = "0.3.9", default-features = false, features = ["wincred", "std"] }
 wiremock = { version = "0.6", default-features = false }
 zip = { version = "8", default-features = false, features = ["deflate"] }
-serial_test = { version = "3", default-features = false }
+serial_test = { version = "4", default-features = false }
 sha2 = { version = "0.11", default-features = false }
 shell-words = { version = "1", default-features = false, features = ["std"] }
+snap = { version = "1", default-features = false }
 test-case = { version = "3", default-features = false }
 url = { version = "2.5.4", default-features = false, features = ["std"] }
 opentelemetry = { version = "0.32", default-features = false }
@@ -122,3 +126,11 @@ cudaforge = { git = "https://github.com/jbg/cudaforge", rev = "e7c1967340e40673d
 # full debug info and stay fully debuggable; release builds are unaffected.
 [profile.dev.package."*"]
 debug = false
+
+[profile.lean]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

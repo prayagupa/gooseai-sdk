@@ -53,16 +53,29 @@ struct DatabricksUpstreamModel {
 
 #[derive(Debug, Clone)]
 struct CachedDatabricksEndpointInfo {
-    info: DatabricksEndpointInfo,
+    info: Option<DatabricksEndpointInfo>,
     fetched_at: Instant,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EndpointMetadataLookup {
+    ContextDiscovery,
+    InferenceRouting,
+}
+
+impl CachedDatabricksEndpointInfo {
+    fn applies_to(&self, lookup: EndpointMetadataLookup) -> bool {
+        self.fetched_at.elapsed() < Duration::from_secs(DATABRICKS_ENDPOINT_METADATA_TTL_SECS)
+            && (lookup == EndpointMetadataLookup::ContextDiscovery || self.info.is_some())
+    }
+}
+
+const DATABRICKS_ENDPOINT_METADATA_TIMEOUT_SECS: u64 = 5;
 const DATABRICKS_ENDPOINT_METADATA_TTL_SECS: u64 = 60;
 static DATABRICKS_ENDPOINT_INFO_CACHE: LazyLock<
     Mutex<std::collections::HashMap<String, CachedDatabricksEndpointInfo>>,
 > = LazyLock::new(|| Mutex::new(std::collections::HashMap::new()));
 pub const DATABRICKS_DEFAULT_MODEL: &str = "databricks-claude-sonnet-4";
-pub const DATABRICKS_DEFAULT_FAST_MODEL: &str = "databricks-claude-haiku-4-5";
 pub const DATABRICKS_KNOWN_MODELS: &[&str] = &[
     "databricks-claude-sonnet-4-5",
     "databricks-meta-llama-3-3-70b-instruct",
@@ -179,6 +192,25 @@ impl DatabricksProvider {
 
     fn is_reasoning_capable_model_name(model_name: &str) -> bool {
         Self::is_claude_model(model_name) || is_openai_responses_model(model_name)
+    }
+
+    fn resolve_vision_support(
+        model_config: &ModelConfig,
+        effective_model_name: &str,
+    ) -> Option<ModelConfig> {
+        if effective_model_name == model_config.model_name {
+            return None;
+        }
+
+        let resolved = ModelConfig::new(effective_model_name)
+            .with_canonical_vision_support(DATABRICKS_PROVIDER_NAME)
+            .supports_vision?;
+
+        if model_config.supports_vision == Some(resolved) {
+            return None;
+        }
+
+        Some(model_config.clone().with_vision_support(resolved))
     }
 
     fn uses_responses_api(
@@ -424,6 +456,7 @@ impl DatabricksProvider {
     async fn resolve_endpoint_info_cached(
         &self,
         endpoint_name: &str,
+        lookup: EndpointMetadataLookup,
     ) -> Result<DatabricksEndpointInfo, ProviderError> {
         let cache_key = format!("{}:{}", self.host, endpoint_name);
         let cached = DATABRICKS_ENDPOINT_INFO_CACHE
@@ -433,14 +466,22 @@ impl DatabricksProvider {
             .cloned();
 
         if let Some(cached) = cached {
-            if cached.fetched_at.elapsed()
-                < Duration::from_secs(DATABRICKS_ENDPOINT_METADATA_TTL_SECS)
-            {
-                return Ok(cached.info);
+            if cached.applies_to(lookup) {
+                return cached.info.ok_or_else(|| {
+                    ProviderError::RequestFailed(
+                        "Databricks endpoint metadata is unavailable".to_string(),
+                    )
+                });
             }
         }
 
-        let info = self.resolve_endpoint_info(endpoint_name).await?;
+        let info = tokio::time::timeout(
+            Duration::from_secs(DATABRICKS_ENDPOINT_METADATA_TIMEOUT_SECS),
+            self.resolve_endpoint_info(endpoint_name),
+        )
+        .await
+        .ok()
+        .and_then(Result::ok);
         DATABRICKS_ENDPOINT_INFO_CACHE.lock().unwrap().insert(
             cache_key,
             CachedDatabricksEndpointInfo {
@@ -448,14 +489,16 @@ impl DatabricksProvider {
                 fetched_at: Instant::now(),
             },
         );
-        Ok(info)
+        info.ok_or_else(|| {
+            ProviderError::RequestFailed("Databricks endpoint metadata is unavailable".to_string())
+        })
     }
 
     fn model_info_from_endpoint(info: DatabricksEndpointInfo) -> ModelInfo {
         let context_model = info.upstream_model_name.as_deref().unwrap_or(&info.name);
-        let context_limit = ModelConfig::new(context_model)
-            .with_canonical_limits(DATABRICKS_PROVIDER_NAME)
-            .context_limit();
+        let context_limit =
+            crate::canonical::maybe_get_canonical_model(DATABRICKS_PROVIDER_NAME, context_model)
+                .map(|model| model.limit.context);
         let reasoning = info
             .reasoning
             .unwrap_or_else(|| ModelConfig::new(context_model).is_reasoning_model());
@@ -507,7 +550,6 @@ impl crate::base::ProviderDescriptor for DatabricksProvider {
                 ConfigKey::new("DATABRICKS_TOKEN", false, true, None, true),
             ],
         )
-        .with_fast_model(DATABRICKS_DEFAULT_FAST_MODEL)
     }
 }
 
@@ -519,6 +561,16 @@ impl Provider for DatabricksProvider {
 
     fn retry_config(&self) -> RetryConfig {
         self.retry_config.clone()
+    }
+
+    async fn get_context_limit(&self, model: &str, override_limit: Option<usize>) -> usize {
+        crate::context_limit::ContextLimitResolver::new(self.get_name())
+            .resolve(model, override_limit, || async {
+                self.fetch_model_info(model)
+                    .await
+                    .map(|info| info.context_limit)
+            })
+            .await
     }
 
     async fn refresh_credentials(&self) -> Result<(), ProviderError> {
@@ -543,7 +595,10 @@ impl Provider for DatabricksProvider {
             .and_then(|provider| provider())
             .unwrap_or_default();
         let (endpoint_name, _) = extract_reasoning_effort(&model_config.model_name);
-        let endpoint_info = self.resolve_endpoint_info_cached(&endpoint_name).await.ok();
+        let endpoint_info = self
+            .resolve_endpoint_info_cached(&endpoint_name, EndpointMetadataLookup::InferenceRouting)
+            .await
+            .ok();
         let effective_model_name = endpoint_info
             .as_ref()
             .and_then(|info| info.upstream_model_name.as_deref())
@@ -552,6 +607,9 @@ impl Provider for DatabricksProvider {
             endpoint_info.as_ref(),
             &[&model_config.model_name, effective_model_name],
         );
+        let vision_resolved_config =
+            Self::resolve_vision_support(model_config, effective_model_name);
+        let model_config = vision_resolved_config.as_ref().unwrap_or(model_config);
         let path = if is_responses_model {
             "serving-endpoints/responses".to_string()
         } else {
@@ -780,7 +838,9 @@ impl Provider for DatabricksProvider {
 
     async fn fetch_model_info(&self, model_name: &str) -> Result<ModelInfo, ProviderError> {
         let (endpoint_name, _) = extract_reasoning_effort(model_name);
-        let endpoint_info = self.resolve_endpoint_info_cached(&endpoint_name).await?;
+        let endpoint_info = self
+            .resolve_endpoint_info_cached(&endpoint_name, EndpointMetadataLookup::ContextDiscovery)
+            .await?;
         Ok(Self::model_info_from_endpoint(endpoint_info))
     }
 
@@ -795,6 +855,34 @@ impl Provider for DatabricksProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn routing_retries_cached_metadata_failures() {
+        let cached = CachedDatabricksEndpointInfo {
+            info: None,
+            fetched_at: Instant::now(),
+        };
+
+        assert!(cached.applies_to(EndpointMetadataLookup::ContextDiscovery));
+        assert!(!cached.applies_to(EndpointMetadataLookup::InferenceRouting));
+    }
+
+    #[test]
+    fn routing_reuses_cached_metadata_successes() {
+        let cached = CachedDatabricksEndpointInfo {
+            info: Some(DatabricksEndpointInfo {
+                name: "production-chat".to_string(),
+                upstream_model_name: Some("gpt-5".to_string()),
+                upstream_model_provider: Some("openai".to_string()),
+                reasoning: Some(true),
+                supports_responses_api: true,
+            }),
+            fetched_at: Instant::now(),
+        };
+
+        assert!(cached.applies_to(EndpointMetadataLookup::ContextDiscovery));
+        assert!(cached.applies_to(EndpointMetadataLookup::InferenceRouting));
+    }
 
     #[test]
     fn endpoint_metadata_marks_reasoning_alias_from_external_model() {
@@ -966,6 +1054,29 @@ mod tests {
         let info = DatabricksProvider::endpoint_info_from_value(&endpoint).unwrap();
 
         assert!(!info.supports_responses_api);
+    }
+
+    #[test]
+    fn vision_support_resolves_from_upstream_model_behind_endpoint_alias() {
+        let aliased = ModelConfig::new("production-chat");
+        assert_eq!(aliased.supports_vision, None);
+
+        let resolved = DatabricksProvider::resolve_vision_support(&aliased, "gpt-4o")
+            .expect("upstream model should resolve vision support");
+        assert_eq!(resolved.supports_vision, Some(true));
+        assert_eq!(resolved.model_name, "production-chat");
+
+        let catalog_alias = ModelConfig::new("gpt-3.5-turbo")
+            .with_canonical_vision_support(DATABRICKS_PROVIDER_NAME);
+        assert_eq!(catalog_alias.supports_vision, Some(false));
+
+        let corrected = DatabricksProvider::resolve_vision_support(&catalog_alias, "gpt-4o")
+            .expect("upstream model should override alias-derived capability");
+        assert_eq!(corrected.supports_vision, Some(true));
+
+        let downgraded =
+            DatabricksProvider::resolve_vision_support(&resolved, "gpt-3.5-turbo").unwrap();
+        assert_eq!(downgraded.supports_vision, Some(false));
     }
 
     #[test]

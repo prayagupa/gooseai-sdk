@@ -134,6 +134,9 @@
   "baseChat.reconnecting": {
     "defaultMessage": "Verbindung unterbrochen. Verbindung wird wiederhergestellt…"
   },
+  "baseChat.retry": {
+    "defaultMessage": "Wiederholen"
+  },
   "bottomMenuExtensionSelection.extensionUpdated": {
     "defaultMessage": "Erweiterung aktualisiert"
   },
@@ -614,6 +617,9 @@
   "customProviderForm.add": {
     "defaultMessage": "Hinzufügen"
   },
+  "customProviderForm.alwaysUseToolshim": {
+    "defaultMessage": "Toolshim für diesen Anbieter immer verwenden"
+  },
   "customProviderForm.anthropicCompatible": {
     "defaultMessage": "Anthropic-kompatibel"
   },
@@ -914,6 +920,15 @@
   "dirSwitcher.currentDirectory": {
     "defaultMessage": "Aktuelles Verzeichnis"
   },
+  "dirSwitcher.enterPath": {
+    "defaultMessage": "Pfad eingeben"
+  },
+  "dirSwitcher.enterPathPlaceholder": {
+    "defaultMessage": "Absoluten Pfad eingeben (z. B. /home/goose/workspace)"
+  },
+  "dirSwitcher.enterPathInvalid": {
+    "defaultMessage": "Arbeitsverzeichnis muss ein absoluter Pfad sein"
+  },
   "dirSwitcher.failedToUpdateWorkingDir": {
     "defaultMessage": "Aktualisieren des Arbeitsverzeichnisses fehlgeschlagen"
   },
@@ -928,6 +943,18 @@
   },
   "dirSwitcher.recentDirectories": {
     "defaultMessage": "Zuletzt verwendete Verzeichnisse"
+  },
+  "gitBranchIndicator.failedToSwitch": {
+    "defaultMessage": "Wechsel zu {branch} fehlgeschlagen"
+  },
+  "gitBranchIndicator.noBranchesFound": {
+    "defaultMessage": "Keine Branches gefunden"
+  },
+  "gitBranchIndicator.searchBranches": {
+    "defaultMessage": "Branches durchsuchen…"
+  },
+  "gitBranchIndicator.uncommittedChanges": {
+    "defaultMessage": "Möglicherweise gibt es noch nicht committete Änderungen."
   },
   "elicitationRequest.accept": {
     "defaultMessage": "Akzeptieren"
@@ -1027,9 +1054,6 @@
   },
   "extensionInfoFields.typeLabel": {
     "defaultMessage": "Typ"
-  },
-  "extensionInfoFields.typeSseUnsupported": {
-    "defaultMessage": "SSE (nicht unterstützt)"
   },
   "extensionInfoFields.typeStandardIo": {
     "defaultMessage": "Standard IO (STDIO)"
@@ -1225,6 +1249,15 @@
   },
   "externalBackendSection.useExternalServerDescription": {
     "defaultMessage": "Verbindung zu einem anderswo laufenden goose-Server herstellen (erfordert Neustart der App)"
+  },
+  "externalBackendSection.workingDir": {
+    "defaultMessage": "Remote-Arbeitsverzeichnis (optional)"
+  },
+  "externalBackendSection.workingDirHelp": {
+    "defaultMessage": "Absoluter Pfad auf dem externen Backend. Leer lassen, um das lokale Arbeitsverzeichnis zu senden."
+  },
+  "externalBackendSection.workingDirPlaceholder": {
+    "defaultMessage": "/home/goose/workspace"
   },
   "goosehintsModal.close": {
     "defaultMessage": "Schließen"
@@ -1700,6 +1733,36 @@
   "launcher.placeholder": {
     "defaultMessage": "Frag goose irgendetwas..."
   },
+  "liveVoice.connecting": {
+    "defaultMessage": "Connecting Live voice"
+  },
+  "liveVoice.emptyComposerRequired": {
+    "defaultMessage": "Clear the message and attachments to use Live voice"
+  },
+  "liveVoice.error": {
+    "defaultMessage": "Live voice failed. Try again"
+  },
+  "liveVoice.live": {
+    "defaultMessage": "Stop Live voice"
+  },
+  "liveVoice.mute": {
+    "defaultMessage": "Mute microphone"
+  },
+  "liveVoice.returnToActive": {
+    "defaultMessage": "Return to active Live voice"
+  },
+  "liveVoice.stopping": {
+    "defaultMessage": "Stopping Live voice"
+  },
+  "liveVoice.unmute": {
+    "defaultMessage": "Unmute microphone"
+  },
+  "liveVoiceSettings.description": {
+    "defaultMessage": "Führe ein Echtzeit-Sprachgespräch mit Goose"
+  },
+  "liveVoiceSettings.title": {
+    "defaultMessage": "Live-Sprachmodus"
+  },
   "loadingGoose.compacting": {
     "defaultMessage": "goose komprimiert die Unterhaltung..."
   },
@@ -1725,13 +1788,10 @@
     "defaultMessage": "Dieses Modell löschen? Sie können es später erneut herunterladen."
   },
   "localInferenceSettings.description": {
-    "defaultMessage": "Lokale LLM-Modelle für die Inferenz ohne API-Schlüssel herunterladen und verwalten. Durchsuchen Sie HuggingFace nach GGUF- oder MLX-Modellen oder verwenden Sie die unten empfohlenen Modelle."
+    "defaultMessage": "Lokale LLM-Modelle für die Inferenz ohne API-Schlüssel herunterladen und verwalten. Durchsuchen Sie Hugging Face nach GGUF- oder MLX-Modellen."
   },
   "localInferenceSettings.dismiss": {
     "defaultMessage": "Schließen"
-  },
-  "localInferenceSettings.download": {
-    "defaultMessage": "Herunterladen"
   },
   "localInferenceSettings.downloadCancelled": {
     "defaultMessage": "Download abgebrochen"
@@ -1750,9 +1810,6 @@
   },
   "localInferenceSettings.evictFromMemory": {
     "defaultMessage": "Evict from memory"
-  },
-  "localInferenceSettings.featuredModels": {
-    "defaultMessage": "Empfohlene Modelle"
   },
   "localInferenceSettings.huggingFaceSignInNote": {
     "defaultMessage": "Melden Sie sich an, um die Ratenbegrenzungen beim Suchen und Herunterladen von Modellen zu erhöhen und auf private oder zugriffsbeschränkte Hugging-Face-Repositories zuzugreifen."
@@ -1777,12 +1834,6 @@
   },
   "localInferenceSettings.retry": {
     "defaultMessage": "Erneut versuchen"
-  },
-  "localInferenceSettings.showAllFeatured": {
-    "defaultMessage": "Alle empfohlenen anzeigen ({count} weitere)"
-  },
-  "localInferenceSettings.showRecommendedOnly": {
-    "defaultMessage": "Nur empfohlene anzeigen"
   },
   "localInferenceSettings.title": {
     "defaultMessage": "Lokale Inferenzmodelle"
@@ -1877,9 +1928,6 @@
   "localModelPicker.useModel": {
     "defaultMessage": "{modelId} verwenden"
   },
-  "markdownContent.cancel": {
-    "defaultMessage": "Abbrechen"
-  },
   "markdownContent.copyCode": {
     "defaultMessage": "Code kopieren"
   },
@@ -1889,23 +1937,8 @@
   "markdownContent.noApplicationFound": {
     "defaultMessage": "Keine Anwendung zum Öffnen dieses Links gefunden."
   },
-  "markdownContent.open": {
-    "defaultMessage": "Öffnen"
-  },
-  "markdownContent.openExternalLink": {
-    "defaultMessage": "Externen Link öffnen"
-  },
-  "markdownContent.openProtocolLink": {
-    "defaultMessage": "{protocol}-Link öffnen?"
-  },
-  "markdownContent.thisWillOpen": {
-    "defaultMessage": "Dies öffnet: {href}"
-  },
   "mcpAppRenderer.appFallbackTitle": {
     "defaultMessage": "App"
-  },
-  "mcpAppRenderer.cancelButton": {
-    "defaultMessage": "Abbrechen"
   },
   "mcpAppRenderer.close": {
     "defaultMessage": "Schließen"
@@ -1929,25 +1962,16 @@
     "defaultMessage": "Ungültige URL"
   },
   "mcpAppRenderer.movePipWindow": {
-    "defaultMessage": "Bild-in-Bild-Fenster verschieben (Pfeiltasten verwenden)"
-  },
-  "mcpAppRenderer.openButton": {
-    "defaultMessage": "Öffnen"
-  },
-  "mcpAppRenderer.openExternalLinkTitle": {
-    "defaultMessage": "Externen Link öffnen"
-  },
-  "mcpAppRenderer.openLinkDetail": {
-    "defaultMessage": "Dies öffnet: {url}"
-  },
-  "mcpAppRenderer.openProtocolLink": {
-    "defaultMessage": "{protocol}-Link öffnen?"
+    "defaultMessage": "Bild-in-Bild-Fenster verschieben"
   },
   "mcpAppRenderer.pictureInPicture": {
     "defaultMessage": "Bild-in-Bild"
   },
   "mcpAppRenderer.playingInPip": {
     "defaultMessage": "Wiedergabe im Bild-in-Bild-Modus"
+  },
+  "mcpAppRenderer.resizePipWindow": {
+    "defaultMessage": "Bild-in-Bild-Fenster in der Größe ändern"
   },
   "mentionPopover.itemsFound": {
     "defaultMessage": "{count,plural,one{# Element gefunden} other{# Elemente gefunden}}"
@@ -2748,7 +2772,7 @@
     "defaultMessage": "Weiter"
   },
   "providerConfigForm.deviceCodeFlowHint": {
-    "defaultMessage": "Es öffnet sich ein Browserfenster und der Bestätigungscode wird in Ihre Zwischenablage kopiert. Fügen Sie ihn im Browser ein, um die Anmeldung abzuschließen."
+    "defaultMessage": "Ein Browserfenster wird geöffnet. Der Bestätigungscode wird hier angezeigt, damit Sie ihn eingeben und die Anmeldung abschließen können."
   },
   "providerConfigForm.noApiKey": {
     "defaultMessage": "Sie haben keinen API-Schlüssel?"
@@ -2787,7 +2811,7 @@
     "defaultMessage": "Dadurch wird die aktuelle Anbieterkonfiguration dauerhaft gelöscht."
   },
   "providerConfigurationModal.deviceCodeFlowHint": {
-    "defaultMessage": "Es öffnet sich ein Browserfenster und der Bestätigungscode wird in Ihre Zwischenablage kopiert. Fügen Sie ihn im Browser ein, um die Anmeldung abzuschließen."
+    "defaultMessage": "Ein Browserfenster wird geöffnet. Der Bestätigungscode wird hier angezeigt, damit Sie ihn eingeben und die Anmeldung abschließen können."
   },
   "providerConfigurationModal.errorCheckingConfig": {
     "defaultMessage": "Beim Überprüfen dieser Anbieterkonfiguration ist ein Fehler aufgetreten."
@@ -3168,7 +3192,7 @@
     "defaultMessage": "Keine gespeicherten Rezepte"
   },
   "recipesView.noSavedRecipesDescription": {
-    "defaultMessage": "Aus Chats gespeicherte Rezepte werden hier angezeigt."
+    "defaultMessage": "Gespeicherte Rezepte werden hier angezeigt."
   },
   "recipesView.openInNewWindow": {
     "defaultMessage": "In neuem Fenster öffnen"
@@ -3431,6 +3455,9 @@
   "scheduleDetailView.viewingScheduleId": {
     "defaultMessage": "Zeitplan-ID wird angezeigt: {id}"
   },
+  "scheduleModal.alreadyScheduledOption": {
+    "defaultMessage": "{title} (bereits geplant)"
+  },
   "scheduleModal.browseYaml": {
     "defaultMessage": "Nach YAML-Datei suchen..."
   },
@@ -3455,6 +3482,9 @@
   "scheduleModal.editSchedule": {
     "defaultMessage": "Zeitplan bearbeiten"
   },
+  "scheduleModal.failedLoadRecipes": {
+    "defaultMessage": "Rezepte konnten nicht geladen werden."
+  },
   "scheduleModal.failedParseRecipe": {
     "defaultMessage": "Rezept konnte nicht aus der Datei gelesen werden."
   },
@@ -3467,14 +3497,23 @@
   "scheduleModal.invalidFileType": {
     "defaultMessage": "Ungültiger Dateityp: Bitte wählen Sie eine YAML-Datei (.yaml oder .yml)"
   },
+  "scheduleModal.loadingRecipes": {
+    "defaultMessage": "Rezepte werden geladen..."
+  },
   "scheduleModal.nameLabel": {
     "defaultMessage": "Name:"
   },
   "scheduleModal.namePlaceholder": {
     "defaultMessage": "z. B. daily-summary-job"
   },
+  "scheduleModal.noSavedRecipes": {
+    "defaultMessage": "Keine gespeicherten Rezepte gefunden."
+  },
   "scheduleModal.provideValidRecipe": {
     "defaultMessage": "Bitte geben Sie eine gültige Rezeptquelle an."
+  },
+  "scheduleModal.recipeAlreadyScheduled": {
+    "defaultMessage": "Dieses Rezept hat bereits einen Zeitplan. Bearbeiten Sie ihn in der Rezeptliste."
   },
   "scheduleModal.recipeDescription": {
     "defaultMessage": "Beschreibung: {description}"
@@ -3485,11 +3524,17 @@
   "scheduleModal.recipeTitle": {
     "defaultMessage": "Titel: {title}"
   },
+  "scheduleModal.savedRecipes": {
+    "defaultMessage": "Gespeicherte Rezepte"
+  },
   "scheduleModal.scheduleIdRequired": {
     "defaultMessage": "Zeitplan-ID ist erforderlich."
   },
   "scheduleModal.scheduleLabel": {
     "defaultMessage": "Zeitplan:"
+  },
+  "scheduleModal.selectRecipePlaceholder": {
+    "defaultMessage": "Ein gespeichertes Rezept auswählen"
   },
   "scheduleModal.selected": {
     "defaultMessage": "Ausgewählt: {path}"
@@ -3684,7 +3729,7 @@
     "defaultMessage": "Sitzungs-JSON kopiert"
   },
   "sessionActionsHeader.copiedModelInteractions": {
-    "defaultMessage": "Recent model interactions copied"
+    "defaultMessage": "Letzte Modellinteraktionen kopiert"
   },
   "sessionActionsHeader.copiedText": {
     "defaultMessage": "Text kopiert"
@@ -3717,10 +3762,10 @@
     "defaultMessage": "JSON wird geladen..."
   },
   "sessionActionsHeader.modelInteractionsFailed": {
-    "defaultMessage": "Failed to load model interactions: {error}"
+    "defaultMessage": "Modellinteraktionen konnten nicht geladen werden: {error}"
   },
   "sessionActionsHeader.modelInteractionsTitle": {
-    "defaultMessage": "Recent model interactions"
+    "defaultMessage": "Letzte Modellinteraktionen"
   },
   "sessionActionsHeader.renameFailed": {
     "defaultMessage": "Sitzung konnte nicht umbenannt werden: {error}"
@@ -3747,7 +3792,7 @@
     "defaultMessage": "Sitzungs-JSON anzeigen"
   },
   "sessionActionsHeader.viewModelInteractions": {
-    "defaultMessage": "View recent model interactions"
+    "defaultMessage": "Letzte Modellinteraktionen anzeigen"
   },
   "sessionIndicators.error": {
     "defaultMessage": "In der Sitzung ist ein Fehler aufgetreten"
@@ -3757,6 +3802,9 @@
   },
   "sessionIndicators.streaming": {
     "defaultMessage": "Streaming"
+  },
+  "sessions.acpBadge": {
+    "defaultMessage": "ACP"
   },
   "sessions.action.delete": {
     "defaultMessage": "Sitzung löschen"
@@ -3836,6 +3884,9 @@
   "sessions.importing": {
     "defaultMessage": "Wird importiert..."
   },
+  "sessions.includeAcp": {
+    "defaultMessage": "ACP-Sitzungen einschließen"
+  },
   "sessions.loadingMore": {
     "defaultMessage": "Weitere Sitzungen werden geladen..."
   },
@@ -3844,6 +3895,12 @@
   },
   "sessions.saving": {
     "defaultMessage": "Wird gespeichert..."
+  },
+  "sessions.scheduledJobs": {
+    "defaultMessage": "Scheduled Jobs"
+  },
+  "sessions.scheduledJobsCount": {
+    "defaultMessage": "{count,plural,one{{count} job} other{{count} jobs}}"
   },
   "sessions.search.noResults": {
     "defaultMessage": "Keine passenden Sitzungen gefunden"
@@ -4415,6 +4472,9 @@
   "telemetrySettings.updateError": {
     "defaultMessage": "Telemetrie-Einstellungen konnten nicht aktualisiert werden."
   },
+  "themeSelector.aura": {
+    "defaultMessage": "Aura"
+  },
   "themeSelector.dark": {
     "defaultMessage": "Dunkel"
   },
@@ -4496,9 +4556,6 @@
   "updateSection.autoDownloadDisabledNote": {
     "defaultMessage": "Automatischer Download ist deaktiviert. Klicken Sie auf \"Jetzt herunterladen\", um manuell herunterzuladen."
   },
-  "updateSection.autoInstallNote": {
-    "defaultMessage": "Keine manuelle Installation erforderlich."
-  },
   "updateSection.checkForUpdates": {
     "defaultMessage": "Nach Updates suchen"
   },
@@ -4529,26 +4586,11 @@
   "updateSection.installAndRestart": {
     "defaultMessage": "Installieren & Neustarten"
   },
-  "updateSection.installNowHint": {
-    "defaultMessage": "Klicken Sie auf \"Installieren & Neustarten\", um jetzt zu aktualisieren."
-  },
   "updateSection.latestVersion": {
     "defaultMessage": "Sie verwenden die neueste Version!"
   },
   "updateSection.loading": {
     "defaultMessage": "Wird geladen..."
-  },
-  "updateSection.manualInstallNote": {
-    "defaultMessage": "Nach dem Download müssen Sie das Update manuell installieren."
-  },
-  "updateSection.manualInstallRequired": {
-    "defaultMessage": "Für diese Update-Methode ist eine manuelle Installation erforderlich."
-  },
-  "updateSection.readyInstallAuto": {
-    "defaultMessage": "✓ Update ist bereit. Starten Sie Goose neu, um die Installation abzuschließen, oder beenden Sie es, wenn Sie fertig sind."
-  },
-  "updateSection.readyInstallManual": {
-    "defaultMessage": "✓ Update ist bereit! Klicken Sie auf \"Installieren & Neustarten\", um die Installationsanweisungen zu erhalten."
   },
   "updateSection.upToDate": {
     "defaultMessage": "(aktuell)"
@@ -4612,5 +4654,122 @@
   },
   "userMessage.removeImageFromEdit": {
     "defaultMessage": "Bild aus Nachricht entfernen"
+  },
+  "modelsBottomBar.recentModels": {
+    "defaultMessage": "Zuletzt verwendet"
+  },
+  "providerConfigurationModal.chooseModel": {
+    "defaultMessage": "Modell auswählen"
+  },
+  "providerCard.deprecatedReplacement": {
+    "defaultMessage": "Veraltet — verwenden Sie stattdessen {replacement}."
+  },
+  "acpReadinessPanel.adapterFound": {
+    "defaultMessage": "ACP-Adapter gefunden"
+  },
+  "acpReadinessPanel.adapterNotFound": {
+    "defaultMessage": "ACP-Adapter nicht gefunden"
+  },
+  "acpReadinessPanel.authenticationHelp": {
+    "defaultMessage": "Melden Sie sich über die Anbieter-CLI an und prüfen Sie die Verbindung erneut."
+  },
+  "acpReadinessPanel.checkAgain": {
+    "defaultMessage": "Erneut prüfen"
+  },
+  "acpReadinessPanel.checking": {
+    "defaultMessage": "Wird geprüft..."
+  },
+  "acpReadinessPanel.connected": {
+    "defaultMessage": "Erfolgreich verbunden"
+  },
+  "acpReadinessPanel.connectionNotChecked": {
+    "defaultMessage": "Prüfen Sie Ihre Kontoverbindung, bevor Sie fortfahren."
+  },
+  "providerConfigForm.deviceCodeAndEnter": {
+    "defaultMessage": "und geben Sie ein:"
+  },
+  "providerConfigForm.deviceCodeCopy": {
+    "defaultMessage": "Kopieren"
+  },
+  "providerConfigForm.deviceCodeVisit": {
+    "defaultMessage": "Besuchen Sie"
+  },
+  "providerConfigurationModal.deviceCodeAndEnter": {
+    "defaultMessage": "und geben Sie ein:"
+  },
+  "providerConfigurationModal.deviceCodeCopy": {
+    "defaultMessage": "Kopieren"
+  },
+  "providerConfigurationModal.deviceCodeVisit": {
+    "defaultMessage": "Besuchen Sie"
+  },
+  "settings.agentLoop.description": {
+    "defaultMessage": "Verwende die operationsbasierte Agentenschleife. Deaktiviere sie, um die Legacy-Schleife zu verwenden."
+  },
+  "settings.agentLoop.operations.auto.placeholder": {
+    "defaultMessage": "Automatisch"
+  },
+  "settings.agentLoop.operations.blockLimit.label": {
+    "defaultMessage": "Blockierungslimit"
+  },
+  "settings.agentLoop.operations.contextCompaction.description": {
+    "defaultMessage": "Fasst den Gesprächsverlauf zusammen, bevor das Kontextfenster voll ist."
+  },
+  "settings.agentLoop.operations.contextCompaction.title": {
+    "defaultMessage": "Kontextkomprimierung"
+  },
+  "settings.agentLoop.operations.cutoff.label": {
+    "defaultMessage": "Grenzwert"
+  },
+  "settings.agentLoop.operations.enable": {
+    "defaultMessage": "{operation} aktivieren"
+  },
+  "settings.agentLoop.operations.failureTimeout.label": {
+    "defaultMessage": "Zeitlimit bei Fehler"
+  },
+  "settings.agentLoop.operations.heading": {
+    "defaultMessage": "Konfigurierbare Operationen"
+  },
+  "settings.agentLoop.operations.maxTurns.description": {
+    "defaultMessage": "Beendet autonomes Arbeiten und fragt vor dem Fortfahren nach."
+  },
+  "settings.agentLoop.operations.maxTurns.title": {
+    "defaultMessage": "Maximale Durchläufe"
+  },
+  "settings.agentLoop.operations.recipeRetry.description": {
+    "defaultMessage": "Führt Rezeptprüfungen erneut aus, wenn eine konfigurierte Erfolgsprüfung fehlschlägt."
+  },
+  "settings.agentLoop.operations.recipeRetry.title": {
+    "defaultMessage": "Wiederholung des Rezepts"
+  },
+  "settings.agentLoop.operations.retryTimeout.label": {
+    "defaultMessage": "Zeitlimit für Wiederholung"
+  },
+  "settings.agentLoop.operations.slashCommands.description": {
+    "defaultMessage": "Erkennt Befehle wie /compact, /skills und Rezeptkürzel."
+  },
+  "settings.agentLoop.operations.slashCommands.title": {
+    "defaultMessage": "Slash-Befehle"
+  },
+  "settings.agentLoop.operations.stopHooks.description": {
+    "defaultMessage": "Ermöglicht Hooks, den Abschluss zu blockieren, und verhindert dabei endlose Stoppzyklen."
+  },
+  "settings.agentLoop.operations.stopHooks.title": {
+    "defaultMessage": "Stopp-Hooks"
+  },
+  "settings.agentLoop.operations.threshold.label": {
+    "defaultMessage": "Schwellenwert %"
+  },
+  "settings.agentLoop.operations.toolPairCompaction.description": {
+    "defaultMessage": "Fasst ältere Werkzeuganfragen und -antworten zusammen, um Kontext zu sparen. Ohne Eingabe wird der Grenzwert automatisch festgelegt."
+  },
+  "settings.agentLoop.operations.toolPairCompaction.title": {
+    "defaultMessage": "Werkzeugpaar-Komprimierung"
+  },
+  "settings.agentLoop.operations.turns.label": {
+    "defaultMessage": "Durchläufe"
+  },
+  "settings.agentLoop.title": {
+    "defaultMessage": "Agentenschleife"
   }
 }

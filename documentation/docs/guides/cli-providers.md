@@ -8,10 +8,10 @@ description: Use Claude Code, Codex, Cursor Agent, or Gemini CLI subscriptions i
 # CLI Providers
 
 :::warning Deprecated — Use ACP Providers
-The Claude Code (`claude-code`), Codex (`codex`), and Gemini CLI (`gemini-cli`) providers are deprecated. Use the [ACP providers](/docs/guides/acp-providers) (`claude-acp`, `codex-acp`) instead, which support goose extensions via MCP and use the standardized Agent Client Protocol. For Gemini, use the `Gemini` (`gemini_oauth`) provider which authenticates via OAuth. CLI providers are kept for backward compatibility only.
+The Claude Code (`claude-code`), Codex (`codex`), Gemini CLI (`gemini-cli`), and Gemini OAuth (`gemini_oauth`) providers are deprecated. Use the [ACP providers](/docs/guides/acp-providers) (`claude-acp`, `codex-acp`) instead for Claude and Codex. For Gemini, use the [Google provider](/docs/getting-started/providers#google-gemini) with a Gemini API key or [Vertex AI](https://cloud.google.com/vertex-ai). Deprecated providers remain available for backward compatibility only.
 :::
 
-goose can make use of pass-through providers that integrate with existing CLI tools from Anthropic, OpenAI, Cursor, and Google. These providers allow you to use your existing Claude Code, Codex, Cursor Agent, and Google Gemini CLI subscriptions through goose's interface, adding session management, persistence, and workflow integration capabilities to these tools.
+goose can make use of pass-through providers that integrate with existing CLI tools from Anthropic, OpenAI, Cursor, and Google. These providers allow you to use your existing Claude Code, Codex, Cursor Agent, and Google Gemini CLI subscriptions through goose's interface, adding session management, persistence, and workflow integration capabilities to these tools. The Gemini OAuth provider is deprecated because Google no longer supports the underlying Code Assist login flow for some account types. See Google's [announcement](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/) and [deprecation notice](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals).
 
 :::warning Limitations
 These providers don’t fully support all goose features, may have platform or capability limitations, and can sometimes require advanced debugging if issues arise. They’re included here purely as a convenience.
@@ -25,7 +25,7 @@ CLI providers are useful if you:
 - need session persistence to save, resume, and export conversation history
 - want to use goose recipes and scheduled tasks to create repeatable workflows
 - prefer unified commands across different AI providers
-- want to [use multiple models together](#combining-with-planner-models) in your tasks
+- want to [use multiple models together](/docs/guides/multi-model) in your tasks
 
 ### Benefits
 
@@ -37,7 +37,7 @@ CLI providers are useful if you:
 #### Workflow Integration  
 - **Recipe compatibility**: Use CLI providers in automated goose recipes
 - **Scheduling support**: Include in scheduled tasks and workflows
-- **Hybrid configurations**: Combine with planning mode and model-specific workflows
+- **Hybrid configurations**: Combine with subagents and model-specific workflows
 
 #### Interface Consistency
 - **Unified commands**: Use the same `goose session` interface across all providers
@@ -257,20 +257,6 @@ The Gemini CLI provider integrates with Google's [Gemini CLI tool](https://ai.go
 Once configured, you can start a goose session using these providers just like any others:
 
 ```bash
-goose session
-```
-
-### Combining with Planner Models
-
-CLI providers also work well with planning mode when you want one model for strategy and another for execution:
-
-```bash
-# Use Claude Code for execution, OpenAI for planning
-export GOOSE_PROVIDER=claude-code
-export GOOSE_MODEL=default
-export GOOSE_PLANNER_PROVIDER=openai
-export GOOSE_PLANNER_MODEL=gpt-4o
-
 goose session
 ```
 

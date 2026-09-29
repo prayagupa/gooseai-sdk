@@ -214,11 +214,14 @@ impl AgentManager {
                     "Restoring evicted session {} (provider: {:?})",
                     session_id, session.provider_name
                 );
-                if let Err(e) = agent.restore_provider_from_session(&session).await {
+                if let Err(error) = agent.restore_provider_from_session(&session).await {
+                    if crate::acp::is_auth_required(&error) {
+                        return Err(error);
+                    }
                     tracing::warn!(
                         "Failed to restore provider for session {}: {}",
                         session_id,
-                        e
+                        error
                     );
                 }
             }
@@ -226,7 +229,7 @@ impl AgentManager {
             if let Some(recipe) = &session.recipe {
                 agent
                     .apply_recipe_components(recipe.response.clone(), true)
-                    .await;
+                    .await?;
             }
         }
 
@@ -401,7 +404,6 @@ mod tests {
     use crate::agents::{AgentConfig, GoosePlatform};
     use crate::config::permission::PermissionManager;
     use crate::config::GooseMode;
-    use crate::execution::SessionExecutionMode;
     use crate::session::SessionManager;
 
     use super::AgentManager;
@@ -417,26 +419,6 @@ mod tests {
             GoosePlatform::GooseDesktop,
         );
         AgentManager::new(agent_config, Some(100)).await.unwrap()
-    }
-
-    #[test]
-    fn test_execution_mode_constructors() {
-        assert_eq!(
-            SessionExecutionMode::chat(),
-            SessionExecutionMode::Interactive
-        );
-        assert_eq!(
-            SessionExecutionMode::scheduled(),
-            SessionExecutionMode::Background
-        );
-
-        let parent = "parent-123".to_string();
-        assert_eq!(
-            SessionExecutionMode::task(parent.clone()),
-            SessionExecutionMode::SubTask {
-                parent_session: parent
-            }
-        );
     }
 
     #[tokio::test]

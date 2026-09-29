@@ -13,7 +13,6 @@ use goose_providers::model::ModelConfig;
 use goose_providers::request_log::{start_log, LoggerHandleExt};
 
 const GEMINI_OAUTH_DEFAULT_MODEL: &str = "gemini-3-flash-preview";
-const GEMINI_OAUTH_DEFAULT_FAST_MODEL: &str = "gemini-2.5-flash-lite";
 use crate::providers::retry::ProviderRetry;
 use anyhow::{anyhow, Result};
 use async_stream::try_stream;
@@ -934,7 +933,7 @@ impl goose_providers::base::ProviderDescriptor for GeminiOAuthProvider {
         ProviderMetadata::new(
             GEMINI_OAUTH_PROVIDER_NAME,
             "Gemini",
-            "Sign in with your Google account to use Gemini models — no API key needed",
+            "[Deprecated: use the Google provider with a Gemini API key or Vertex AI instead] Sign in with your Google account to use Gemini models — no API key needed",
             GEMINI_OAUTH_DEFAULT_MODEL,
             GEMINI_OAUTH_KNOWN_MODELS.to_vec(),
             GOOGLE_DOC_URL,
@@ -946,7 +945,6 @@ impl goose_providers::base::ProviderDescriptor for GeminiOAuthProvider {
                 false,
             )],
         )
-        .with_fast_model(GEMINI_OAUTH_DEFAULT_FAST_MODEL)
     }
 }
 

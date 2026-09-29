@@ -12,6 +12,7 @@ pub(super) struct ProviderFeatures {
     pub(super) resolved_model: Option<&'static str>,
     pub(super) cache_read_tokens: Option<i32>,
     pub(super) cache_write_tokens: Option<i32>,
+    pub(super) manages_own_context: bool,
 }
 
 impl Default for ProviderFeatures {
@@ -22,6 +23,7 @@ impl Default for ProviderFeatures {
             resolved_model: None,
             cache_read_tokens: None,
             cache_write_tokens: None,
+            manages_own_context: false,
         }
     }
 }
@@ -29,6 +31,7 @@ impl Default for ProviderFeatures {
 #[derive(Clone)]
 enum ApiResponse {
     Reply(String),
+    ReplyWithDistinctIds(Vec<String>),
     ToolCall {
         name: String,
         arguments: String,
@@ -132,11 +135,16 @@ impl ResponseGate {
 #[derive(Clone)]
 pub(super) struct ApiCall {
     body: Value,
+    session_id: Option<String>,
 }
 
 impl ApiCall {
     pub(super) fn input_tokens(&self) -> i32 {
         serialized_chars(&self.body)
+    }
+
+    pub(super) fn session_id(&self) -> Option<&str> {
+        self.session_id.as_deref()
     }
 
     pub(super) fn input_contains(&self, needle: &str) -> bool {
@@ -258,6 +266,15 @@ pub(super) struct ConfiguredResponse<'a> {
 impl<'a> ApiRuleBuilder<'a> {
     pub(super) fn reply(self, text: impl Into<String>) -> ConfiguredResponse<'a> {
         self.configured(ApiResponse::Reply(text.into()))
+    }
+
+    pub(super) fn reply_with_distinct_ids<const N: usize>(
+        self,
+        chunks: [&str; N],
+    ) -> ConfiguredResponse<'a> {
+        self.configured(ApiResponse::ReplyWithDistinctIds(
+            chunks.into_iter().map(str::to_string).collect(),
+        ))
     }
 
     pub(super) fn hold_reply(self, text: impl Into<String>) -> ResponseGate {
@@ -415,10 +432,15 @@ impl<'a> ConfiguredResponse<'a> {
 impl DummyApiState {
     fn respond(&self, request: &Request) -> ResponseTemplate {
         let body: Value = request.body_json().expect("OpenAI request body");
-        self.calls
-            .lock()
-            .unwrap()
-            .push(ApiCall { body: body.clone() });
+        let session_id = request
+            .headers
+            .get(crate::session_context::SESSION_ID_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string);
+        self.calls.lock().unwrap().push(ApiCall {
+            body: body.clone(),
+            session_id,
+        });
 
         let input_tokens = serialized_chars(&body);
         let model = body["model"].as_str().expect("OpenAI request model");
@@ -468,6 +490,13 @@ impl DummyApiState {
                 &text,
                 None,
             )),
+            ApiResponse::ReplyWithDistinctIds(chunks) => {
+                let output_tokens: usize = chunks.iter().map(|chunk| chunk.chars().count()).sum();
+                sse_response(reply_events_with_distinct_ids(
+                    &meta(output_tokens as i32),
+                    &chunks,
+                ))
+            }
             ApiResponse::ToolCall {
                 name,
                 arguments,
@@ -657,6 +686,43 @@ fn reply_events(meta: &ResponseMeta, text: &str, error: Option<&str>) -> String 
     } else {
         events.push_str("data: [DONE]\n\n");
     }
+    events
+}
+
+fn reply_events_with_distinct_ids(meta: &ResponseMeta, chunks: &[String]) -> String {
+    let mut events = String::new();
+    for (index, chunk) in chunks.iter().enumerate() {
+        push_event(
+            &mut events,
+            json!({
+                "id": format!("{}-{index}", meta.id),
+                "object": "chat.completion.chunk",
+                "model": meta.model,
+                "choices": [{
+                    "index": 0,
+                    "delta": { "content": chunk },
+                    "finish_reason": null
+                }]
+            }),
+        );
+    }
+    push_event(
+        &mut events,
+        json!({
+            "id": format!("{}-{}", meta.id, chunks.len().saturating_sub(1)),
+            "object": "chat.completion.chunk",
+            "model": meta.model,
+            "choices": [{
+                "index": 0,
+                "delta": {},
+                "finish_reason": "stop"
+            }]
+        }),
+    );
+    if meta.include_usage {
+        push_event(&mut events, usage_event(meta));
+    }
+    events.push_str("data: [DONE]\n\n");
     events
 }
 

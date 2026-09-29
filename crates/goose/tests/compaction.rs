@@ -21,12 +21,21 @@ use tempfile::TempDir;
 struct MockCompactionProvider {
     /// Tracks whether compaction has occurred (for context limit recovery case)
     has_compacted: Arc<AtomicBool>,
+    manages_own_context: bool,
 }
 
 impl MockCompactionProvider {
     fn new() -> Self {
         Self {
             has_compacted: Arc::new(AtomicBool::new(false)),
+            manages_own_context: false,
+        }
+    }
+
+    fn context_owning() -> Self {
+        Self {
+            has_compacted: Arc::new(AtomicBool::new(false)),
+            manages_own_context: true,
         }
     }
 
@@ -98,6 +107,10 @@ impl MockCompactionProvider {
 
 #[async_trait]
 impl Provider for MockCompactionProvider {
+    fn manages_own_context(&self) -> bool {
+        self.manages_own_context
+    }
+
     async fn stream(
         &self,
         _model_config: &ModelConfig,
@@ -185,8 +198,8 @@ impl goose::providers::base::ProviderDescriptor for MockCompactionProvider {
             model_doc_link: "".to_string(),
             config_keys: vec![],
             setup_steps: vec![],
-            model_selection_hint: None,
-            fast_model: None,
+            setup: None,
+            deprecated: None,
         }
     }
 }
@@ -238,6 +251,58 @@ async fn setup_test_session(
         .await?;
 
     Ok(session)
+}
+
+#[tokio::test]
+async fn context_owning_provider_rejects_clear_and_compact_without_changing_session() -> Result<()>
+{
+    let temp_dir = TempDir::new()?;
+    let agent = Agent::new();
+    let messages = vec![
+        Message::user().with_text("Remember this"),
+        Message::assistant().with_text("I will"),
+    ];
+    let session = setup_test_session(
+        &agent,
+        &temp_dir,
+        "context-owning-provider",
+        messages.clone(),
+    )
+    .await?;
+    let before = agent
+        .config
+        .session_manager
+        .get_session(&session.id, true)
+        .await?;
+    let conversation_before = before.conversation.unwrap();
+    let usage_before = before.usage;
+    let provider = Arc::new(MockCompactionProvider::context_owning());
+    agent
+        .update_provider(provider, ModelConfig::new("mock-model"), &session.id)
+        .await?;
+
+    for command in ["clear", "compact"] {
+        let error = agent
+            .execute_command(&format!("/{command}"), &session.id)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "/{command} is not available for provider 'mock-compaction' because it manages its own conversation context"
+            )
+        );
+    }
+
+    let unchanged = agent
+        .config
+        .session_manager
+        .get_session(&session.id, true)
+        .await?;
+    assert_eq!(unchanged.conversation.unwrap(), conversation_before);
+    assert_eq!(unchanged.usage, usage_before);
+
+    Ok(())
 }
 
 /// Helper: Assert conversation has been compacted with proper message visibility
@@ -472,7 +537,14 @@ async fn test_auto_compaction_during_reply() -> Result<()> {
         retry_config: None,
     };
 
-    let reply_stream = agent.reply(user_message, session_config, None).await?;
+    let reply_stream = agent
+        .reply(
+            user_message,
+            session_config,
+            goose::agents::state_machine::enabled(),
+            None,
+        )
+        .await?;
     tokio::pin!(reply_stream);
 
     // Track compaction and context size changes
@@ -629,6 +701,7 @@ async fn test_context_limit_recovery_compaction() -> Result<()> {
         .reply(
             Message::user().with_text("Tell me more"),
             session_config,
+            goose::agents::state_machine::enabled(),
             None,
         )
         .await?;

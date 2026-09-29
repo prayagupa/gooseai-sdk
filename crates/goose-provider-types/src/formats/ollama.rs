@@ -10,6 +10,7 @@
 //! - qwen3-coder-32b
 
 use crate::conversation::message::{Message, MessageContentBlock};
+use crate::maybe_send::MaybeSend;
 use crate::{
     conversation::token_usage::ProviderUsage,
     formats::openai::{self, is_valid_function_name},
@@ -160,7 +161,7 @@ pub fn response_to_streaming_message_ollama<S>(
     stream: S,
 ) -> impl Stream<Item = anyhow::Result<(Option<Message>, Option<ProviderUsage>)>> + 'static
 where
-    S: Stream<Item = anyhow::Result<String>> + Unpin + Send + 'static,
+    S: Stream<Item = anyhow::Result<String>> + Unpin + MaybeSend + 'static,
 {
     try_stream! {
         use futures::StreamExt;
@@ -170,13 +171,12 @@ where
 
         let mut accumulated_text = String::new();
         let mut xml_detected = false;
-        let mut last_usage: Option<ProviderUsage> = None;
+        let mut buffered_usage: Option<ProviderUsage> = None;
 
         while let Some(result) = base_stream.next().await {
             let (message_opt, usage) = result?;
-
             if usage.is_some() {
-                last_usage = usage.clone();
+                buffered_usage = usage.clone();
             }
 
             if let Some(message) = message_opt {
@@ -194,7 +194,7 @@ where
                 }
 
                 yield (Some(message), usage);
-            } else {
+            } else if usage.is_some() && !xml_detected {
                 yield (None, usage);
             }
         }
@@ -215,7 +215,7 @@ where
                     contents,
                 );
 
-                yield (Some(msg), last_usage);
+                yield (Some(msg), buffered_usage);
             } else {
                 let msg = Message::new(
                     Role::Assistant,
@@ -224,7 +224,7 @@ where
                 )
                 .with_generated_id();
 
-                yield (Some(msg), last_usage);
+                yield (Some(msg), buffered_usage);
             }
         }
     }
@@ -389,7 +389,9 @@ data: [DONE]"#;
             .next()
             .await
             .expect("expected invalid XML fallback message")?;
-        assert!(usage.is_none());
+        let usage = usage.expect("expected buffered response metadata");
+        assert_eq!(usage.response_id.as_deref(), Some("ollama-source-id"));
+        assert_eq!(usage.finish_reasons, Some(vec!["stop".to_string()]));
         let message = message.expect("expected invalid XML fallback message");
         assert_eq!(message.role, Role::Assistant);
         assert_eq!(message.content.len(), 1);

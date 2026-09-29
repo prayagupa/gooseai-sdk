@@ -1,12 +1,20 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IntlTestWrapper } from '../i18n/test-utils';
 import type {
+  Message,
   NotificationEvent,
   ToolRequestMessageContent,
   ToolResponseMessageContent,
 } from '../types/message';
+import { getAnyToolConfirmationData } from '../types/message';
+import { resolveAcpPermissionRequest } from '../acp/permissionRequests';
 import ToolCallWithResponse from './ToolCallWithResponse';
+
+vi.mock('../acp/permissionRequests', () => ({
+  resolveAcpPermissionRequest: vi.fn(),
+}));
 
 const toolRequest: ToolRequestMessageContent = {
   type: 'toolRequest',
@@ -61,6 +69,23 @@ const toolResponse: ToolResponseMessageContent = {
   },
 };
 
+const failedToolResponse: ToolResponseMessageContent = {
+  type: 'toolResponse',
+  id: 'tool-1',
+  toolResult: {
+    status: 'success',
+    value: {
+      content: [
+        {
+          type: 'text',
+          text: 'this output is important',
+        },
+      ],
+      isError: true,
+    },
+  },
+};
+
 function renderToolCall(response?: ToolResponseMessageContent) {
   return render(
     <ToolCallWithResponse
@@ -99,5 +124,51 @@ describe('ToolCallWithResponse live output', () => {
 
     expect(screen.queryByText(/starting/)).not.toBeInTheDocument();
     expect(await screen.findByText('final result')).toBeInTheDocument();
+  });
+
+  it('renders output from a failed tool call', async () => {
+    renderToolCall(failedToolResponse);
+
+    expect(await screen.findByText('this output is important')).toBeInTheDocument();
+  });
+
+  it('passes the current ACP permission generation through inline approval', async () => {
+    const permissionMessage: Message = {
+      content: [
+        {
+          type: 'actionRequired',
+          data: {
+            actionType: 'toolConfirmation',
+            arguments: { command: 'build' },
+            generation: 'permission-generation-1',
+            id: 'tool-1',
+            toolName: 'developer__shell',
+          },
+        },
+      ],
+      created: 0,
+      metadata: { agentVisible: true, userVisible: true },
+      role: 'assistant',
+    };
+
+    render(
+      <ToolCallWithResponse
+        sessionId="session-1"
+        isCancelledMessage={false}
+        toolRequest={toolRequest}
+        isPendingApproval
+        confirmationContent={getAnyToolConfirmationData(permissionMessage)}
+      />,
+      { wrapper: IntlTestWrapper }
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Allow Once' }));
+
+    expect(resolveAcpPermissionRequest).toHaveBeenCalledWith(
+      'session-1',
+      'tool-1',
+      'permission-generation-1',
+      'allow_once'
+    );
   });
 });

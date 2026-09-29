@@ -21,7 +21,7 @@ export function nameToKey(name: string): string {
 export interface ExtensionFormData {
   name: string;
   description: string;
-  type: 'stdio' | 'sse' | 'streamable_http' | 'builtin';
+  type: 'stdio' | 'streamable_http' | 'builtin';
   cmd?: string;
   endpoint?: string;
   enabled: boolean;
@@ -38,6 +38,12 @@ export interface ExtensionFormData {
   }[];
   installation_notes?: string;
   available_tools?: string[];
+  // streamable_http fields with no form input yet; carried through so an
+  // unrelated edit does not strip them from the saved config.
+  socket?: string | null;
+  client_id?: string | null;
+  client_secret_key?: string | null;
+  scopes?: string[];
 }
 
 export function getDefaultFormData(): ExtensionFormData {
@@ -103,28 +109,27 @@ export function extensionToFormData(extension: FixedExtensionEntry): ExtensionFo
   return {
     name: extension.name || '',
     description: extension.description || '',
-    type:
-      extension.type === 'frontend' ||
-      extension.type === 'inline_python' ||
-      extension.type === 'platform'
-        ? 'stdio'
-        : extension.type,
+    type: extension.type === 'platform' ? 'stdio' : extension.type,
     cmd:
       extension.type === 'stdio'
         ? combineCmdAndArgs(extension.cmd, extension.args ?? [])
         : undefined,
-    endpoint:
-      extension.type === 'streamable_http' || extension.type === 'sse'
-        ? (extension.uri ?? undefined)
-        : undefined,
+    endpoint: extension.type === 'streamable_http' ? (extension.uri ?? undefined) : undefined,
     enabled: extension.enabled,
     timeout: 'timeout' in extension ? (extension.timeout ?? undefined) : undefined,
     envVars,
     headers,
     installation_notes: (extension as Record<string, unknown>)['installation_notes'] as
-      | string
-      | undefined,
+      string | undefined,
     ...(availableTools ? { available_tools: availableTools } : {}),
+    ...(extension.type === 'streamable_http'
+      ? {
+          socket: extension.socket,
+          client_id: extension.client_id,
+          client_secret_key: extension.client_secret_key,
+          scopes: extension.scopes,
+        }
+      : {}),
   };
 }
 
@@ -176,23 +181,22 @@ export function createExtensionConfig(formData: ExtensionFormData): ExtensionCon
       ...(env_keys.length > 0 ? { env_keys } : {}),
       headers,
       ...availableToolsConfig(formData.available_tools),
-    };
-  } else if (formData.type === 'builtin') {
-    return {
-      type: formData.type,
-      name: formData.name,
-      description: formData.description,
-      timeout: formData.timeout,
-      ...availableToolsConfig(formData.available_tools),
-    };
-  } else {
-    return {
-      type: formData.type,
-      name: formData.name,
-      description: formData.description,
-      uri: formData.endpoint || '',
+      ...(formData.socket != null ? { socket: formData.socket } : {}),
+      ...(formData.client_id != null ? { client_id: formData.client_id } : {}),
+      ...(formData.client_secret_key != null
+        ? { client_secret_key: formData.client_secret_key }
+        : {}),
+      ...(formData.scopes?.length ? { scopes: formData.scopes } : {}),
     };
   }
+
+  return {
+    type: formData.type,
+    name: formData.name,
+    description: formData.description,
+    timeout: formData.timeout,
+    ...availableToolsConfig(formData.available_tools),
+  };
 }
 
 function isWindowsPlatform(): boolean {

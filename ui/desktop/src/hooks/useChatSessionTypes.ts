@@ -22,11 +22,13 @@ export interface UseChatSessionResult {
     userData: Record<string, unknown>
   ) => Promise<boolean>;
   stopStreaming: () => void;
+  retrySessionLoad: () => Promise<void>;
   sessionLoadError?: string;
   tokenState: TokenState;
   notifications: Map<string, NotificationEvent[]>;
   pauseQueueOnStop: boolean;
   queueProcessingBlocked: boolean;
+  hasActiveRun: boolean;
   onMessageUpdate: (
     messageId: string,
     newContent: string,

@@ -7,9 +7,12 @@ pub mod acp;
 pub use goose_sdk_types::{custom_notifications, custom_requests};
 pub mod action_required_manager;
 pub mod agents;
+#[cfg(feature = "agent-hooks")]
+pub mod agent_hooks;
 pub mod builtin_extension;
 pub mod checks;
 pub mod config;
+pub mod context_limit;
 pub mod context_mgmt;
 pub mod conversation {
     pub use goose_providers::conversation::*;
@@ -24,8 +27,11 @@ pub mod goose_apps;
 pub mod hints;
 pub mod hooks;
 pub mod instance_id;
+mod live_voice;
 pub mod logging;
 pub mod mcp_utils;
+#[cfg(feature = "online-model-meta")]
+pub mod model_catalog;
 pub mod model_config;
 pub mod oauth;
 #[cfg(feature = "otel")]

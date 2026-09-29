@@ -1,18 +1,23 @@
 //! Compacts conversation history when it is too large for the configured context window.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use tracing_futures::Instrument;
 
-use crate::agents::state_machine::operation::{
-    applied, last_effective_role, messages_since_kickoff, not_applicable, trailing_error, yielded,
-    yielded_with, Emitter, Operation, OperationResult, SlashCommand, StateEffect,
-};
 use crate::agents::state_machine::ops_llm::{chat_span, record_chat_usage};
-use crate::context_mgmt::compact_messages;
-use crate::conversation::message::{Message, MessageErrorKind, SystemNotificationType};
+use crate::agents::state_machine::ops_recipe::RecipeOperation;
+use crate::agents::state_machine::{
+    applied, last_effective_role, messages_since_kickoff, not_applicable, trailing_error, yielded,
+    yielded_with, ConversationEffect, Emitter, GooseEffect, Operation, OperationResult,
+    SlashCommand,
+};
+use crate::context_mgmt::{compact_messages, count_context_tokens};
+use crate::conversation::message::{
+    Message, MessageContent, MessageErrorKind, SystemNotificationType,
+};
 use crate::conversation::{Conversation, EffectiveRole};
 use crate::providers::base::Provider;
 use crate::session::Session;
@@ -41,6 +46,36 @@ fn compaction_part(
         "<compaction>~{}k tokens remaining</compaction>",
         compaction_at.saturating_sub(total_tokens) / 1000
     ))
+}
+
+/// Several operations answer parts of one tool batch in separate messages, so a
+/// tool tail alone does not mean the batch is complete.
+fn awaits_tool_responses(messages: &[Message]) -> bool {
+    let answered: HashSet<&str> = messages
+        .iter()
+        .flat_map(Message::get_tool_response_ids)
+        .collect();
+    messages
+        .iter()
+        .flat_map(|message| &message.content)
+        .filter_map(MessageContent::as_tool_request)
+        .any(|request| {
+            !request.was_executed_externally() && !answered.contains(request.id.as_str())
+        })
+}
+
+/// Reported usage stops at the inference that requested the tools, so the
+/// results that answered it are not counted until the next request.
+async fn unreported_tool_tokens(conversation: &Conversation) -> Result<i32> {
+    let messages = conversation.messages();
+    if last_effective_role(messages)? != EffectiveRole::Tool {
+        return Ok(0);
+    }
+    let after_request = messages
+        .iter()
+        .rposition(Message::is_tool_call)
+        .map_or(0, |index| index + 1);
+    count_context_tokens(&messages[after_request..]).await
 }
 
 pub struct CompactionOperation {
@@ -75,11 +110,18 @@ impl CompactionOperation {
         (tokens as f64 / self.context_limit as f64) > self.threshold
     }
 
+    async fn context_tokens(&self, session: &Session, conversation: &Conversation) -> Result<i32> {
+        match session.usage.total_tokens {
+            Some(tokens) => Ok(tokens + unreported_tool_tokens(conversation).await?),
+            None => count_context_tokens(conversation.messages()).await,
+        }
+    }
+
     async fn command_error(
         conversation: &Conversation,
         message: String,
         emit: &Emitter,
-    ) -> Result<OperationResult> {
+    ) -> Result<OperationResult<GooseEffect>> {
         let command = messages_since_kickoff(conversation)?
             .first()
             .cloned()
@@ -95,16 +137,20 @@ impl CompactionOperation {
         emit.message(command).await;
         let response = emit.message(response).await;
         yielded_with([
-            StateEffect::SetMessageVisibility {
+            ConversationEffect::SetMessageVisibility {
                 message_id,
                 user_visible: true,
                 agent_visible: false,
-            },
+            }
+            .into(),
             response.into(),
         ])
     }
 
-    async fn clear(conversation: &Conversation, emit: &Emitter) -> Result<OperationResult> {
+    async fn clear(
+        conversation: &Conversation,
+        emit: &Emitter,
+    ) -> Result<OperationResult<GooseEffect>> {
         let command = messages_since_kickoff(conversation)?
             .first()
             .cloned()
@@ -124,7 +170,7 @@ impl CompactionOperation {
 }
 
 #[async_trait]
-impl Operation for CompactionOperation {
+impl Operation<Session, GooseEffect> for CompactionOperation {
     fn name(&self) -> &'static str {
         "compaction"
     }
@@ -135,7 +181,7 @@ impl Operation for CompactionOperation {
         session: &Session,
         conversation: &Conversation,
         emit: &Emitter,
-    ) -> Result<OperationResult> {
+    ) -> Result<OperationResult<GooseEffect>> {
         match command.command {
             "clear" => return Self::clear(conversation, emit).await,
             "compact" => {}
@@ -179,7 +225,7 @@ impl Operation for CompactionOperation {
         emit.message(command).await;
         let response = emit.message(response).await;
         yielded_with([
-            StateEffect::ReplaceConversation {
+            GooseEffect::CompactConversation {
                 conversation: compacted,
                 usage: Some(usage),
             },
@@ -190,13 +236,13 @@ impl Operation for CompactionOperation {
     async fn moim_parts(
         &self,
         session: &Session,
-        _conversation: &Conversation,
+        conversation: &Conversation,
     ) -> Result<Vec<String>> {
         if self.manages_own_context {
             return Ok(Vec::new());
         }
         Ok(compaction_part(
-            session.usage.total_tokens,
+            Some(self.context_tokens(session, conversation).await?),
             self.context_limit,
             self.threshold,
         )
@@ -209,7 +255,7 @@ impl Operation for CompactionOperation {
         session: &Session,
         conversation: &Conversation,
         emit: &Emitter,
-    ) -> Result<OperationResult> {
+    ) -> Result<OperationResult<GooseEffect>> {
         if self.manages_own_context {
             return not_applicable();
         }
@@ -232,12 +278,20 @@ impl Operation for CompactionOperation {
                 return not_applicable();
             }
         } else {
-            if last_effective_role(messages)? != EffectiveRole::User {
+            // Compact only ahead of an inference. An assistant tail ends the turn or
+            // awaits tool responses, hiding an unanswered request orphans its result,
+            // and RecipeOperation delivers a successful final output from a tool tail.
+            let tail = last_effective_role(messages)?;
+            if tail == EffectiveRole::Assistant
+                || awaits_tool_responses(messages)
+                || (tail == EffectiveRole::Tool
+                    && RecipeOperation::successful_final_output(messages).is_some())
+            {
                 return not_applicable();
             }
-            match session.usage.total_tokens {
-                Some(tokens) if tokens > 0 && self.over_threshold(tokens as usize) => {}
-                _ => return not_applicable(),
+            let tokens = self.context_tokens(session, conversation).await?;
+            if tokens <= 0 || !self.over_threshold(tokens as usize) {
+                return not_applicable();
             }
         }
 
@@ -294,7 +348,7 @@ impl Operation for CompactionOperation {
                     "Compaction complete",
                 ))
                 .await;
-                applied([StateEffect::ReplaceConversation {
+                applied([GooseEffect::CompactConversation {
                     conversation: compacted,
                     usage: Some(usage),
                 }])

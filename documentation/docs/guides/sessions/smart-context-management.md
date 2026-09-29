@@ -295,7 +295,6 @@ Context limits are automatically detected based on your model name, but goose pr
 | Model | Description | Best For | Setting |
 |-------|-------------|----------|---------|
 | **Main** | Set context limit for the main model (also serves as fallback for other models) | LiteLLM proxies, custom models with non-standard names | `GOOSE_CONTEXT_LIMIT` |
-| **Planner** | Set context for [planner models](/docs/guides/context-engineering/creating-plans) | Large planning tasks requiring extensive context | `GOOSE_PLANNER_CONTEXT_LIMIT` |
 
 :::info
 This setting only affects the displayed token usage and progress indicators. Actual context management is handled by your LLM, so you may experience more or less usage than the limit you set, regardless of what the display shows.
@@ -310,10 +309,10 @@ This feature is particularly useful with:
 
 goose resolves context limits with the following precedence (highest to lowest):
 
-1. Explicit context_limit in model configuration (if set programmatically)
-2. Specific environment variable (e.g., `GOOSE_PLANNER_CONTEXT_LIMIT`)
-3. Global environment variable (`GOOSE_CONTEXT_LIMIT`)
-4. Model-specific default based on name pattern matching
+1. Global environment variable (`GOOSE_CONTEXT_LIMIT`)
+2. Explicit declarative or custom provider model configuration
+3. Provider runtime discovery
+4. Canonical model metadata
 5. Global default (128,000 tokens)
 
 **Configuration**
@@ -348,22 +347,6 @@ export GOOSE_MODEL="my-custom-gpt4-proxy"
 export GOOSE_CONTEXT_LIMIT=200000  # Override the 32k default
 ```
 
-2. Planner setup with a different context limit
-
-```bash
-# Set a larger context window for planning
-export GOOSE_PLANNER_MODEL="claude-opus-custom"
-export GOOSE_PLANNER_CONTEXT_LIMIT=500000
-```
-
-3. Planner with large context
-
-```bash
-# Large context for complex planning
-export GOOSE_PLANNER_MODEL="gpt-4-custom"
-export GOOSE_PLANNER_CONTEXT_LIMIT=1000000
-```
-
 ## Credit Balance Monitoring
 
 goose monitors your API provider balance and warns you when credits are running low or exhausted. When this happens, you'll see an **Insufficient Credits** notification.
@@ -396,7 +379,7 @@ The session cost is shown at the bottom of the goose window and updates dynamica
 
 Pricing data is regularly fetched from the OpenRouter API and cached locally. The `Advanced settings` tab shows when the data was last updated and allows you to refresh. 
 
-These costs are estimates only, and not connected to your actual provider bill. The cost shown is an approximation based on token counts and public pricing data.
+These costs are public-price estimates only, not invoices or a view of your actual provider bill. The displayed amount approximates usage from token counts and public catalog rates; provider-reported costs take precedence when available.
 </TabItem>
     <TabItem value="cli" label="goose CLI">
     Show estimated cost in the goose CLI by setting the `GOOSE_CLI_SHOW_COST` [environment variable](/docs/guides/environment-variables.md#session-management) or including it in the [configuration file](/docs/guides/config-files.md).

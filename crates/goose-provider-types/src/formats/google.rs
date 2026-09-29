@@ -1,6 +1,10 @@
 use crate::conversation::token_usage::{ProviderUsage, Usage};
+use crate::documents::{
+    document_media_type_is_supported, unsupported_document_text, UNSUPPORTED_MEDIA_TYPE_REASON,
+};
 use crate::errors::ProviderError;
 use crate::formats::openai::{is_valid_function_name, sanitize_function_name};
+use crate::maybe_send::MaybeSend;
 use crate::mcp_utils::extract_text_from_resource;
 use crate::model::ModelConfig;
 use crate::thinking::ThinkingEffort;
@@ -88,18 +92,9 @@ pub fn format_messages(messages: &[Message], nested_function_response_media: boo
         })
         .collect();
 
-    let tool_names: HashMap<_, _> = filtered
-        .iter()
-        .flat_map(|message| &message.content)
-        .filter_map(|content| match content {
-            MessageContentBlock::ToolRequest(request) => request
-                .tool_call
-                .as_ref()
-                .ok()
-                .map(|tool_call| (request.id.as_str(), sanitize_function_name(&tool_call.name))),
-            _ => None,
-        })
-        .collect();
+    // Record names as we walk the conversation so a reused tool-call id
+    // resolves to the nearest preceding request, not a later overwrite.
+    let mut tool_names: HashMap<&str, String> = HashMap::new();
 
     let active_loop_start_idx = filtered
         .iter()
@@ -132,12 +127,11 @@ pub fn format_messages(messages: &[Message], nested_function_response_media: boo
                     }
                     MessageContentBlock::ToolRequest(request) => match &request.tool_call {
                         Ok(tool_call) => {
+                            let name = sanitize_function_name(&tool_call.name);
+                            tool_names.insert(request.id.as_str(), name.clone());
                             let mut function_call_part = Map::new();
                             function_call_part.insert("id".to_string(), json!(request.id));
-                            function_call_part.insert(
-                                "name".to_string(),
-                                json!(sanitize_function_name(&tool_call.name)),
-                            );
+                            function_call_part.insert("name".to_string(), json!(name));
 
                             if let Some(args) = &tool_call.arguments {
                                 if !args.is_empty() {
@@ -254,6 +248,20 @@ pub fn format_messages(messages: &[Message], nested_function_response_media: boo
                                 "data": image.data,
                             }
                         }));
+                    }
+                    MessageContentBlock::Document(document) => {
+                        if document_media_type_is_supported(&document.mime_type) {
+                            parts.push(json!({
+                                "inline_data": {
+                                    "mime_type": document.mime_type,
+                                    "data": document.data,
+                                }
+                            }));
+                        } else {
+                            parts.push(json!({
+                                "text": unsupported_document_text(document, UNSUPPORTED_MEDIA_TYPE_REASON)
+                            }));
+                        }
                     }
 
                     _ => {}
@@ -402,10 +410,26 @@ pub fn get_usage(data: &Value) -> Result<Usage> {
             .get("promptTokenCount")
             .and_then(|v| v.as_u64())
             .map(|v| v as i32);
-        let output_tokens = usage_meta_data
+        // `candidatesTokenCount` is the visible output; thinking models
+        // (Gemini 2.5/3) report reasoning tokens separately in
+        // `thoughtsTokenCount`, and per the API spec `totalTokenCount` =
+        // prompt + thoughts + candidates. Fold thoughts into `output_tokens` so
+        // the record reconciles (input + output == total) and cost, which
+        // Google bills at the output rate, is correct -- matching the OpenAI
+        // (completion_tokens includes reasoning) and Anthropic (output_tokens
+        // includes thinking) adapters.
+        let candidates_tokens = usage_meta_data
             .get("candidatesTokenCount")
-            .and_then(|v| v.as_u64())
-            .map(|v| v as i32);
+            .and_then(|v| v.as_u64());
+        let thoughts_tokens = usage_meta_data
+            .get("thoughtsTokenCount")
+            .and_then(|v| v.as_u64());
+        let output_tokens = match (candidates_tokens, thoughts_tokens) {
+            (None, None) => None,
+            (candidates, thoughts) => {
+                Some((candidates.unwrap_or(0) + thoughts.unwrap_or(0)) as i32)
+            }
+        };
         let total_tokens = usage_meta_data
             .get("totalTokenCount")
             .and_then(|v| v.as_u64())
@@ -431,7 +455,7 @@ pub fn response_to_streaming_message<S>(
     mut stream: S,
 ) -> impl futures::Stream<Item = anyhow::Result<(Option<Message>, Option<ProviderUsage>)>> + 'static
 where
-    S: futures::Stream<Item = anyhow::Result<String>> + Unpin + Send + 'static,
+    S: futures::Stream<Item = anyhow::Result<String>> + Unpin + MaybeSend + 'static,
 {
     use async_stream::try_stream;
     use futures::StreamExt;
@@ -441,6 +465,8 @@ where
         let mut last_signature: Option<String> = None;
         let stream_id = Uuid::new_v4().to_string();
         let mut incomplete_data: Option<String> = None;
+        let mut last_finish_reason: Option<String> = None;
+        let mut last_response_id: Option<String> = None;
 
         while let Some(line_result) = stream.next().await {
             let line = line_result?;
@@ -517,10 +543,22 @@ where
                 }
             }
 
-            let parts = chunk
+            if let Some(response_id) = chunk.get("responseId").and_then(|v| v.as_str()) {
+                last_response_id = Some(response_id.to_string());
+            }
+
+            let candidate = chunk
                 .get("candidates")
                 .and_then(|v| v.as_array())
-                .and_then(|c| c.first())
+                .and_then(|c| c.first());
+            if let Some(reason) = candidate
+                .and_then(|c| c.get("finishReason"))
+                .and_then(|v| v.as_str())
+            {
+                last_finish_reason = Some(reason.to_string());
+            }
+
+            let parts = candidate
                 .and_then(|c| c.get("content"))
                 .and_then(|c| c.get("parts"))
                 .and_then(|p| p.as_array());
@@ -539,7 +577,11 @@ where
             }
         }
 
-        if let Some(usage) = final_usage {
+        if let Some(mut usage) = final_usage {
+            if let Some(reason) = last_finish_reason {
+                usage.finish_reasons = Some(vec![reason]);
+            }
+            usage.response_id = last_response_id;
             yield (None, Some(usage));
         }
     }
@@ -833,6 +875,33 @@ mod tests {
     }
 
     #[test]
+    fn test_get_usage_includes_thinking_tokens() {
+        // Gemini thinking models (2.5/3, the goose defaults) report reasoning
+        // tokens separately in `thoughtsTokenCount`, and per the API spec
+        // `totalTokenCount` = prompt + thoughts + candidates. `output_tokens`
+        // must include thoughts so the record reconciles (input + output ==
+        // total) and cost, which Google bills at the output rate, is correct --
+        // matching the OpenAI (completion_tokens includes reasoning) and
+        // Anthropic (output_tokens includes thinking) adapters.
+        let data = json!({
+            "usageMetadata": {
+                "promptTokenCount": 100,
+                "candidatesTokenCount": 50,
+                "thoughtsTokenCount": 200,
+                "totalTokenCount": 350
+            }
+        });
+        let usage = get_usage(&data).unwrap();
+        assert_eq!(usage.input_tokens, Some(100));
+        assert_eq!(usage.output_tokens, Some(250));
+        assert_eq!(usage.total_tokens, Some(350));
+        assert_eq!(
+            usage.input_tokens.unwrap() + usage.output_tokens.unwrap(),
+            usage.total_tokens.unwrap(),
+        );
+    }
+
+    #[test]
     fn test_message_to_google_spec_text_message() {
         let messages = vec![
             set_up_text_message("Hello", Role::User),
@@ -871,6 +940,31 @@ mod tests {
         assert_eq!(
             payload[0]["parts"][1]["inline_data"]["data"],
             "base64encodeddata"
+        );
+    }
+
+    #[test]
+    fn test_message_to_google_spec_document_only_message() {
+        let messages = vec![Message::new(
+            Role::User,
+            0,
+            vec![MessageContentBlock::document(
+                "base64pdfdata".to_string(),
+                "application/pdf".to_string(),
+                Some("report.pdf".to_string()),
+            )],
+        )];
+        let payload = format_messages(&messages, false);
+
+        assert_eq!(payload.len(), 1);
+        assert_eq!(payload[0]["role"], "user");
+        assert_eq!(
+            payload[0]["parts"][0]["inline_data"]["mime_type"],
+            "application/pdf"
+        );
+        assert_eq!(
+            payload[0]["parts"][0]["inline_data"]["data"],
+            "base64pdfdata"
         );
     }
 
@@ -950,6 +1044,38 @@ mod tests {
                 "id": "call_123",
                 "name": "read_file",
                 "response": {"content": {"text": "contents"}}
+            })
+        );
+    }
+
+    #[test]
+    fn test_reused_tool_call_id_keeps_each_response_name() {
+        let messages = vec![
+            set_up_tool_request_message(
+                "call_3407",
+                CallToolRequestParams::new("download_document"),
+            ),
+            set_up_tool_response_message("call_3407", vec![ContentBlock::text("the document")]),
+            set_up_tool_request_message("call_3407", CallToolRequestParams::new("shell")),
+            set_up_tool_response_message("call_3407", vec![ContentBlock::text("shell output")]),
+        ];
+
+        let payload = format_messages(&messages, false);
+
+        assert_eq!(
+            payload[1]["parts"][0]["functionResponse"],
+            json!({
+                "id": "call_3407",
+                "name": "download_document",
+                "response": {"content": {"text": "the document"}}
+            })
+        );
+        assert_eq!(
+            payload[3]["parts"][0]["functionResponse"],
+            json!({
+                "id": "call_3407",
+                "name": "shell",
+                "response": {"content": {"text": "shell output"}}
             })
         );
     }
@@ -1405,6 +1531,30 @@ mod tests {
             message_ids.iter().all(|id| id == first_id),
             "All streaming messages should have the same ID"
         );
+    }
+
+    #[tokio::test]
+    async fn test_streaming_response_metadata() {
+        use futures::StreamExt;
+
+        let lines = vec![Ok(
+            r#"data: {"candidates":[{"content":{"role":"model","parts":[{"text":"done"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":2,"candidatesTokenCount":1,"totalTokenCount":3},"modelVersion":"gemini-test","responseId":"response-123"}"#
+                .to_string(),
+        )];
+        let stream = Box::pin(futures::stream::iter(lines));
+        let mut message_stream = std::pin::pin!(response_to_streaming_message(stream));
+        let mut final_usage = None;
+
+        while let Some(result) = message_stream.next().await {
+            let (_, usage) = result.unwrap();
+            if usage.is_some() {
+                final_usage = usage;
+            }
+        }
+
+        let usage = final_usage.unwrap();
+        assert_eq!(usage.finish_reasons, Some(vec!["STOP".to_string()]));
+        assert_eq!(usage.response_id.as_deref(), Some("response-123"));
     }
 
     #[tokio::test]

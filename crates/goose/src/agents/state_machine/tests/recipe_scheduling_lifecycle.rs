@@ -1,17 +1,24 @@
 use anyhow::Result;
 use serde_json::json;
 
+use super::dummy_api::{DummyApi, ProviderFeatures};
 use super::pipeline::{
-    test_pipeline, test_pipeline_with_scheduler, MessageKind::Agent, MessageKind::Error,
-    MessageKind::ToolResponse,
+    test_pipeline, test_pipeline_with, test_pipeline_with_scheduler, MessageKind::Agent,
+    MessageKind::Error, MessageKind::ToolResponse,
 };
 use crate::agents::extension::ExtensionConfig;
 use crate::agents::final_output_tool::{FINAL_OUTPUT_CONTINUATION_MESSAGE, FINAL_OUTPUT_TOOL_NAME};
 use crate::agents::platform_extensions::scheduler::MANAGE_SCHEDULE_TOOL_NAME_COMPLETE;
+#[cfg(feature = "code-mode")]
+use crate::agents::state_machine::ops_tool_approval::TOOL_EXECUTABLE_KEY;
 use crate::agents::state_machine::MAX_TURNS_MESSAGE;
 use crate::agents::tool_execution::CHAT_MODE_TOOL_SKIPPED_RESPONSE;
 use crate::agents::types::{RetryConfig, SuccessCheck};
+#[cfg(feature = "code-mode")]
+use crate::config::permission::PermissionLevel;
 use crate::config::GooseMode;
+#[cfg(feature = "code-mode")]
+use crate::conversation::message::MessageContent;
 use crate::recipe::build_recipe::build_recipe_from_template;
 use crate::recipe::{Recipe, Response, SubRecipe};
 
@@ -214,6 +221,120 @@ async fn recipe_retry_and_final_output_run_to_completion() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "code-mode")]
+#[tokio::test]
+async fn unadvertised_final_output_is_neither_approved_nor_executed() -> Result<()> {
+    let (pipeline, api) = test_pipeline().await?;
+    let recipe = Recipe::builder()
+        .title("Structured output boundary")
+        .description("Structured output boundary")
+        .instructions("Return structured output")
+        .response(Response {
+            json_schema: Some(json!({
+                "type": "object",
+                "properties": { "result": { "type": "string" } },
+                "required": ["result"]
+            })),
+        })
+        .build()
+        .expect("valid recipe");
+    pipeline.set_recipe(recipe).await?;
+    pipeline.add_extension("code_execution").await?;
+    pipeline.set_permission(FINAL_OUTPUT_TOOL_NAME, PermissionLevel::AlwaysAllow);
+    let pipeline = pipeline
+        .with_max_turns(2)
+        .with_goose_mode(GooseMode::Approve)
+        .await;
+    api.on("try the hidden final output")
+        .unadvertised_call(FINAL_OUTPUT_TOOL_NAME, json!({ "result": "escaped" }));
+    api.on("not available").reply("recipe call blocked");
+
+    let result = pipeline.run(["try the hidden final output"]).await?;
+
+    assert!(!api.calls()[0].advertises_tool(FINAL_OUTPUT_TOOL_NAME));
+    assert!(result.conversation().messages().iter().any(|message| {
+        message.content.iter().any(|content| {
+            matches!(content, MessageContent::ToolResponse(response)
+            if response.tool_result.as_ref().is_ok_and(|result| {
+                result.content.iter().any(|content| {
+                    content.as_text().is_some_and(|text| {
+                        text.text.contains("Tool 'recipe__final_output' is not available")
+                    })
+                })
+            }))
+        })
+    }));
+    assert!(result.conversation().messages().iter().any(|message| {
+        message.content.iter().any(|content| {
+            matches!(content, MessageContent::Text(text) if text.text == "recipe call blocked")
+        })
+    }));
+    assert!(!result.conversation().messages().iter().any(|message| {
+        message
+            .content
+            .iter()
+            .any(|content| matches!(content, MessageContent::ActionRequired(_)))
+    }));
+    let request = result
+        .conversation()
+        .messages()
+        .iter()
+        .flat_map(|message| &message.content)
+        .filter_map(MessageContent::as_tool_request)
+        .find(|request| {
+            request
+                .tool_call
+                .as_ref()
+                .is_ok_and(|tool_call| tool_call.name == FINAL_OUTPUT_TOOL_NAME)
+        })
+        .expect("final_output request");
+    assert!(request
+        .tool_meta
+        .as_ref()
+        .and_then(|metadata| metadata.get(TOOL_EXECUTABLE_KEY))
+        .is_none());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn structured_output_fails_fast_when_provider_manages_own_context() -> Result<()> {
+    let (pipeline, api) = test_pipeline_with(ProviderFeatures {
+        manages_own_context: true,
+        ..ProviderFeatures::default()
+    })
+    .await?;
+    let pipeline = pipeline.with_provider_name("context-owning-test").await?;
+    api.on("compute the answer").reply("thinking about it");
+    api.on(FINAL_OUTPUT_CONTINUATION_MESSAGE)
+        .call(FINAL_OUTPUT_TOOL_NAME, json!({ "result": "42" }));
+    let recipe = Recipe::builder()
+        .title("Structured output")
+        .description("Return structured output")
+        .instructions("Compute the answer")
+        .response(Response {
+            json_schema: Some(json!({
+                "type": "object",
+                "properties": { "result": { "type": "string" } },
+                "required": ["result"]
+            })),
+        })
+        .build()
+        .expect("valid recipe");
+    pipeline.set_recipe(recipe).await?;
+
+    let result = pipeline.run(["compute the answer"]).await?;
+    result.assert_message(-1, Agent, "provider `context-owning-test` can't support it");
+    assert!(
+        api.calls()
+            .iter()
+            .all(|call| !call.input_contains(FINAL_OUTPUT_CONTINUATION_MESSAGE)),
+        "must fail fast without ever entering the continuation-nudge loop"
+    );
+
+    Ok(())
+}
+
 #[tokio::test]
 async fn scheduler_is_advertised_only_when_configured_and_manages_jobs() -> Result<()> {
     let (pipeline, api) = test_pipeline().await?;
@@ -342,6 +463,127 @@ async fn invalid_final_output_schema_stops_before_inference() -> Result<()> {
     };
     assert!(error.to_string().contains("empty json_schema"));
     assert_eq!(api.call_count(), 0);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn boolean_final_output_schema_stops_before_inference() -> Result<()> {
+    let (pipeline, api) = test_pipeline().await?;
+    let recipe = Recipe::builder()
+        .title("Boolean output schema")
+        .description("Boolean output schema")
+        .instructions("This must not reach inference")
+        .response(Response {
+            json_schema: Some(json!(true)),
+        })
+        .build()
+        .expect("recipe shape is otherwise valid");
+    pipeline.set_recipe(recipe).await?;
+
+    let error = match pipeline.run(["start"]).await {
+        Ok(_) => panic!("boolean schema must be rejected"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("json_schema must be an object"));
+    assert_eq!(api.call_count(), 0);
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn scheduled_run_attaches_recipe_to_session_before_inference() -> Result<()> {
+    let api = DummyApi::start(ProviderFeatures::default()).await;
+    let gate = api
+        .on("Reply while the response gate is held.")
+        .hold_reply("done");
+    let host = api.uri();
+    let _guard = env_lock::lock_env([
+        ("GOOSE_PROVIDER", Some("openai")),
+        ("GOOSE_MODEL", Some("gpt-4o")),
+        ("OPENAI_API_KEY", Some("fake-openai-no-keyring")),
+        ("OPENAI_HOST", Some(host.as_str())),
+        ("OPENAI_CUSTOM_HEADERS", Some("")),
+    ]);
+
+    let temp_dir = tempfile::tempdir()?;
+    let recipe_path = temp_dir.path().join("scheduled.yaml");
+    std::fs::write(
+        &recipe_path,
+        r#"version: 1.0.0
+title: Ordering guard
+description: Scheduled recipe with a sub-recipe
+prompt: Reply while the response gate is held.
+extensions: []
+sub_recipes:
+  - name: check_calendar
+    path: ./check_calendar.yaml
+"#,
+    )?;
+    std::fs::write(
+        temp_dir.path().join("check_calendar.yaml"),
+        r#"version: 1.0.0
+title: Check calendar
+description: Sub-recipe
+prompt: check
+"#,
+    )?;
+
+    let session_manager = std::sync::Arc::new(crate::session::SessionManager::new(
+        temp_dir.path().to_path_buf(),
+    ));
+    let scheduler = crate::scheduler::Scheduler::new(
+        temp_dir.path().join("schedule.json"),
+        session_manager.clone(),
+    )
+    .await?;
+    let job = crate::scheduler::ScheduledJob {
+        id: "ordering_guard".to_string(),
+        source: recipe_path.to_string_lossy().into_owned(),
+        cron: "0 0 0 1 1 *".to_string(),
+        last_run: None,
+        currently_running: false,
+        paused: false,
+        current_session_id: None,
+        process_start_time: None,
+        parameters: vec![],
+        recipe_base_dir: None,
+    };
+    scheduler.add_scheduled_job(job, true).await?;
+
+    let mut run = tokio::spawn({
+        let scheduler = scheduler.clone();
+        async move { scheduler.run_now("ordering_guard").await }
+    });
+
+    tokio::select! {
+        () = gate.entered() => {}
+        result = &mut run => panic!("run ended before inference began: {result:?}"),
+        () = tokio::time::sleep(std::time::Duration::from_secs(60)) => {
+            panic!("inference request never arrived")
+        }
+    }
+    let sampled = async {
+        let sessions = session_manager
+            .list_sessions_by_types(&[crate::session::SessionType::Scheduled])
+            .await?;
+        session_manager.get_session(&sessions[0].id, false).await
+    }
+    .await;
+    gate.release();
+    let session = sampled?;
+
+    let recipe = session
+        .recipe
+        .expect("recipe must be attached to the session before inference begins");
+    assert_eq!(recipe.title, "Ordering guard");
+    let sub_recipes = recipe
+        .sub_recipes
+        .expect("attached recipe must keep its sub_recipes block");
+    assert_eq!(sub_recipes.len(), 1);
+    assert_eq!(sub_recipes[0].name, "check_calendar");
+
+    run.await??;
 
     Ok(())
 }

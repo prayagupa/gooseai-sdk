@@ -134,6 +134,9 @@
   "baseChat.reconnecting": {
     "defaultMessage": "Bağlantı kesildi. Yeniden bağlanılıyor…"
   },
+  "baseChat.retry": {
+    "defaultMessage": "Yeniden dene"
+  },
   "bottomMenuExtensionSelection.extensionUpdated": {
     "defaultMessage": "Uzantı Güncellendi"
   },
@@ -614,6 +617,9 @@
   "customProviderForm.add": {
     "defaultMessage": "Ekle"
   },
+  "customProviderForm.alwaysUseToolshim": {
+    "defaultMessage": "Bu sağlayıcı için her zaman Toolshim kullan"
+  },
   "customProviderForm.anthropicCompatible": {
     "defaultMessage": "Anthropic Uyumlu"
   },
@@ -914,6 +920,15 @@
   "dirSwitcher.currentDirectory": {
     "defaultMessage": "Geçerli dizin"
   },
+  "dirSwitcher.enterPath": {
+    "defaultMessage": "Enter path"
+  },
+  "dirSwitcher.enterPathPlaceholder": {
+    "defaultMessage": "Enter an absolute path (e.g. /home/goose/workspace)"
+  },
+  "dirSwitcher.enterPathInvalid": {
+    "defaultMessage": "Working directory must be an absolute path"
+  },
   "dirSwitcher.failedToUpdateWorkingDir": {
     "defaultMessage": "Çalışma dizini güncellenemedi"
   },
@@ -928,6 +943,18 @@
   },
   "dirSwitcher.recentDirectories": {
     "defaultMessage": "Son dizinler"
+  },
+  "gitBranchIndicator.failedToSwitch": {
+    "defaultMessage": "{branch} dalına geçilemedi"
+  },
+  "gitBranchIndicator.noBranchesFound": {
+    "defaultMessage": "Dal bulunamadı"
+  },
+  "gitBranchIndicator.searchBranches": {
+    "defaultMessage": "Dal ara…"
+  },
+  "gitBranchIndicator.uncommittedChanges": {
+    "defaultMessage": "Commit edilmemiş değişiklikleriniz olabilir."
   },
   "elicitationRequest.accept": {
     "defaultMessage": "Kabul et"
@@ -1027,9 +1054,6 @@
   },
   "extensionInfoFields.typeLabel": {
     "defaultMessage": "Tür"
-  },
-  "extensionInfoFields.typeSseUnsupported": {
-    "defaultMessage": "SSE (desteklenmiyor)"
   },
   "extensionInfoFields.typeStandardIo": {
     "defaultMessage": "Standart IO (STDIO)"
@@ -1225,6 +1249,15 @@
   },
   "externalBackendSection.useExternalServerDescription": {
     "defaultMessage": "Başka bir yerde çalışan bir goose sunucusuna bağlanın (uygulamanın yeniden başlatılmasını gerektirir)"
+  },
+  "externalBackendSection.workingDir": {
+    "defaultMessage": "Uzak çalışma dizini (isteğe bağlı)"
+  },
+  "externalBackendSection.workingDirHelp": {
+    "defaultMessage": "Harici arka uçtaki mutlak yol. Yerel çalışma dizinini göndermek için boş bırakın."
+  },
+  "externalBackendSection.workingDirPlaceholder": {
+    "defaultMessage": "/home/goose/workspace"
   },
   "goosehintsModal.close": {
     "defaultMessage": "Kapat"
@@ -1700,6 +1733,36 @@
   "launcher.placeholder": {
     "defaultMessage": "goose'a herhangi bir şey sorun..."
   },
+  "liveVoice.connecting": {
+    "defaultMessage": "Connecting Live voice"
+  },
+  "liveVoice.emptyComposerRequired": {
+    "defaultMessage": "Clear the message and attachments to use Live voice"
+  },
+  "liveVoice.error": {
+    "defaultMessage": "Live voice failed. Try again"
+  },
+  "liveVoice.live": {
+    "defaultMessage": "Stop Live voice"
+  },
+  "liveVoice.mute": {
+    "defaultMessage": "Mute microphone"
+  },
+  "liveVoice.returnToActive": {
+    "defaultMessage": "Return to active Live voice"
+  },
+  "liveVoice.stopping": {
+    "defaultMessage": "Stopping Live voice"
+  },
+  "liveVoice.unmute": {
+    "defaultMessage": "Unmute microphone"
+  },
+  "liveVoiceSettings.description": {
+    "defaultMessage": "Goose ile gerçek zamanlı sesli sohbet edin"
+  },
+  "liveVoiceSettings.title": {
+    "defaultMessage": "Canlı ses"
+  },
   "loadingGoose.compacting": {
     "defaultMessage": "goose konuşmayı sıkıştırıyor..."
   },
@@ -1725,13 +1788,10 @@
     "defaultMessage": "Bu model silinsin mi? Daha sonra tekrar indirebilirsiniz."
   },
   "localInferenceSettings.description": {
-    "defaultMessage": "API anahtarları olmadan çıkarım yapmak için yerel LLM modellerini indirin ve yönetin. Herhangi bir GGUF modeli için HuggingFace'yi arayın veya aşağıdaki öne çıkan seçimleri kullanın."
+    "defaultMessage": "API anahtarları olmadan çıkarım yapmak için yerel LLM modellerini indirin ve yönetin. Hugging Face üzerinde GGUF veya MLX modelleri arayın."
   },
   "localInferenceSettings.dismiss": {
     "defaultMessage": "Kapat"
-  },
-  "localInferenceSettings.download": {
-    "defaultMessage": "İndir"
   },
   "localInferenceSettings.downloadCancelled": {
     "defaultMessage": "İndirme iptal edildi"
@@ -1750,9 +1810,6 @@
   },
   "localInferenceSettings.evictFromMemory": {
     "defaultMessage": "Evict from memory"
-  },
-  "localInferenceSettings.featuredModels": {
-    "defaultMessage": "Öne Çıkan Modeller"
   },
   "localInferenceSettings.huggingFaceSignInNote": {
     "defaultMessage": "Model ararken ve indirirken hız sınırlarını artırmak ve özel ya da erişimi kısıtlı Hugging Face depolarına erişmek için oturum açın."
@@ -1777,12 +1834,6 @@
   },
   "localInferenceSettings.retry": {
     "defaultMessage": "Yeniden dene"
-  },
-  "localInferenceSettings.showAllFeatured": {
-    "defaultMessage": "Tüm öne çıkanları göster ({count} daha fazlası)"
-  },
-  "localInferenceSettings.showRecommendedOnly": {
-    "defaultMessage": "Yalnızca önerilenleri göster"
   },
   "localInferenceSettings.title": {
     "defaultMessage": "Yerel Çıkarım Modelleri"
@@ -1877,9 +1928,6 @@
   "localModelPicker.useModel": {
     "defaultMessage": "{modelId}'yi kullanın"
   },
-  "markdownContent.cancel": {
-    "defaultMessage": "İptal"
-  },
   "markdownContent.copyCode": {
     "defaultMessage": "Kodu kopyala"
   },
@@ -1889,23 +1937,8 @@
   "markdownContent.noApplicationFound": {
     "defaultMessage": "Bu bağlantıyı açacak uygulama bulunamadı."
   },
-  "markdownContent.open": {
-    "defaultMessage": "Açık"
-  },
-  "markdownContent.openExternalLink": {
-    "defaultMessage": "Dış Bağlantıyı Aç"
-  },
-  "markdownContent.openProtocolLink": {
-    "defaultMessage": "{protocol} bağlantısı açılsın mı?"
-  },
-  "markdownContent.thisWillOpen": {
-    "defaultMessage": "Bu açılacak: {href}"
-  },
   "mcpAppRenderer.appFallbackTitle": {
     "defaultMessage": "Uygulama"
-  },
-  "mcpAppRenderer.cancelButton": {
-    "defaultMessage": "İptal"
   },
   "mcpAppRenderer.close": {
     "defaultMessage": "Kapat"
@@ -1929,25 +1962,16 @@
     "defaultMessage": "Geçersiz URL"
   },
   "mcpAppRenderer.movePipWindow": {
-    "defaultMessage": "Resim İçinde Resim penceresini taşıyın (ok tuşlarını kullanın)"
-  },
-  "mcpAppRenderer.openButton": {
-    "defaultMessage": "Açık"
-  },
-  "mcpAppRenderer.openExternalLinkTitle": {
-    "defaultMessage": "Dış Bağlantıyı Aç"
-  },
-  "mcpAppRenderer.openLinkDetail": {
-    "defaultMessage": "Bu açılacak: {url}"
-  },
-  "mcpAppRenderer.openProtocolLink": {
-    "defaultMessage": "{protocol} bağlantısı açılsın mı?"
+    "defaultMessage": "Resim İçinde Resim penceresini taşıyın"
   },
   "mcpAppRenderer.pictureInPicture": {
     "defaultMessage": "Resim İçinde Resim"
   },
   "mcpAppRenderer.playingInPip": {
     "defaultMessage": "Resim İçinde Resim'de Oynatma"
+  },
+  "mcpAppRenderer.resizePipWindow": {
+    "defaultMessage": "Resim İçinde Resim penceresini yeniden boyutlandırın"
   },
   "mentionPopover.itemsFound": {
     "defaultMessage": "{count,plural,one{# öğe bulundu} other{# öğe bulundu}}"
@@ -2748,7 +2772,7 @@
     "defaultMessage": "Devam et"
   },
   "providerConfigForm.deviceCodeFlowHint": {
-    "defaultMessage": "Bir tarayıcı penceresi açılacak ve doğrulama kodu panonuza kopyalanacaktır. Oturum açmayı tamamlamak için tarayıcıya yapıştırın."
+    "defaultMessage": "Bir tarayıcı penceresi açılacak. Doğrulama kodu burada görünecek; oturum açmayı tamamlamak için kodu girin."
   },
   "providerConfigForm.noApiKey": {
     "defaultMessage": "API anahtarınız yok mu?"
@@ -2787,7 +2811,7 @@
     "defaultMessage": "Bu, mevcut sağlayıcı yapılandırmasını kalıcı olarak silecektir."
   },
   "providerConfigurationModal.deviceCodeFlowHint": {
-    "defaultMessage": "Bir tarayıcı penceresi açılacak ve doğrulama kodu panonuza kopyalanacaktır. Oturum açmayı tamamlamak için tarayıcıya yapıştırın."
+    "defaultMessage": "Bir tarayıcı penceresi açılacak. Doğrulama kodu burada görünecek; oturum açmayı tamamlamak için kodu girin."
   },
   "providerConfigurationModal.errorCheckingConfig": {
     "defaultMessage": "Bu sağlayıcı yapılandırması kontrol edilirken bir hata oluştu."
@@ -3168,7 +3192,7 @@
     "defaultMessage": "Kayıtlı tarif yok"
   },
   "recipesView.noSavedRecipesDescription": {
-    "defaultMessage": "Sohbetlerden kaydedilen tarif burada görünecek."
+    "defaultMessage": "Kaydedilen tarifler burada görünecek."
   },
   "recipesView.openInNewWindow": {
     "defaultMessage": "Yeni pencerede aç"
@@ -3431,6 +3455,9 @@
   "scheduleDetailView.viewingScheduleId": {
     "defaultMessage": "Program Kimliğini Görüntüleme: {id}"
   },
+  "scheduleModal.alreadyScheduledOption": {
+    "defaultMessage": "{title} (zaten zamanlanmış)"
+  },
   "scheduleModal.browseYaml": {
     "defaultMessage": "YAML dosyasına göz atın..."
   },
@@ -3455,6 +3482,9 @@
   "scheduleModal.editSchedule": {
     "defaultMessage": "Programı Düzenle"
   },
+  "scheduleModal.failedLoadRecipes": {
+    "defaultMessage": "Tarifeler yüklenemedi."
+  },
   "scheduleModal.failedParseRecipe": {
     "defaultMessage": "Dosyadan tarif ayrıştırılamadı."
   },
@@ -3467,14 +3497,23 @@
   "scheduleModal.invalidFileType": {
     "defaultMessage": "Geçersiz dosya türü: Lütfen bir YAML dosyası seçin (.yaml veya.yml)"
   },
+  "scheduleModal.loadingRecipes": {
+    "defaultMessage": "Tarifeler yükleniyor..."
+  },
   "scheduleModal.nameLabel": {
     "defaultMessage": "İsim:"
   },
   "scheduleModal.namePlaceholder": {
     "defaultMessage": "örneğin günlük özet işi"
   },
+  "scheduleModal.noSavedRecipes": {
+    "defaultMessage": "Kayıtlı tarife bulunamadı."
+  },
   "scheduleModal.provideValidRecipe": {
     "defaultMessage": "Lütfen geçerli bir tarif kaynağı sağlayın."
+  },
+  "scheduleModal.recipeAlreadyScheduled": {
+    "defaultMessage": "Bu tarifin zaten bir zamanlaması var. Tarif listesinden düzenleyin."
   },
   "scheduleModal.recipeDescription": {
     "defaultMessage": "Açıklama: {description}"
@@ -3485,11 +3524,17 @@
   "scheduleModal.recipeTitle": {
     "defaultMessage": "Başlık: {title}"
   },
+  "scheduleModal.savedRecipes": {
+    "defaultMessage": "Kayıtlı tarifeler"
+  },
   "scheduleModal.scheduleIdRequired": {
     "defaultMessage": "Program kimliği gerekli."
   },
   "scheduleModal.scheduleLabel": {
     "defaultMessage": "Program:"
+  },
+  "scheduleModal.selectRecipePlaceholder": {
+    "defaultMessage": "Kayıtlı bir tarife seç"
   },
   "scheduleModal.selected": {
     "defaultMessage": "Seçili: {path}"
@@ -3672,82 +3717,82 @@
     "defaultMessage": "Komut enjeksiyonu algılama, WARP bağlantısı olduğunda en iyi şekilde çalışır (sınıflandırma hizmetine erişmek için gereklidir)."
   },
   "sessionActionsHeader.actionsLabel": {
-    "defaultMessage": "Session actions"
+    "defaultMessage": "Oturum işlemleri"
   },
   "sessionActionsHeader.cancel": {
-    "defaultMessage": "Cancel"
+    "defaultMessage": "İptal"
   },
   "sessionActionsHeader.close": {
-    "defaultMessage": "Close"
+    "defaultMessage": "Kapat"
   },
   "sessionActionsHeader.copiedJson": {
-    "defaultMessage": "Session JSON copied"
+    "defaultMessage": "Oturum JSON’u kopyalandı"
   },
   "sessionActionsHeader.copiedModelInteractions": {
-    "defaultMessage": "Recent model interactions copied"
+    "defaultMessage": "Son model etkileşimleri kopyalandı"
   },
   "sessionActionsHeader.copiedText": {
-    "defaultMessage": "Text copied"
+    "defaultMessage": "Metin kopyalandı"
   },
   "sessionActionsHeader.copyJson": {
-    "defaultMessage": "Copy JSON"
+    "defaultMessage": "JSON’u kopyala"
   },
   "sessionActionsHeader.copyText": {
-    "defaultMessage": "Copy text"
+    "defaultMessage": "Metni kopyala"
   },
   "sessionActionsHeader.duplicateFailed": {
-    "defaultMessage": "Failed to duplicate session: {error}"
+    "defaultMessage": "Oturum kopyalanamadı: {error}"
   },
   "sessionActionsHeader.duplicateSession": {
-    "defaultMessage": "Duplicate session"
+    "defaultMessage": "Oturumu kopyala"
   },
   "sessionActionsHeader.duplicated": {
-    "defaultMessage": "Session duplicated"
+    "defaultMessage": "Oturum kopyalandı"
   },
   "sessionActionsHeader.fullTextTitle": {
-    "defaultMessage": "Text value"
+    "defaultMessage": "Metin değeri"
   },
   "sessionActionsHeader.jsonFailed": {
-    "defaultMessage": "Failed to load session JSON: {error}"
+    "defaultMessage": "Oturum JSON’u yüklenemedi: {error}"
   },
   "sessionActionsHeader.jsonTitle": {
-    "defaultMessage": "Session JSON"
+    "defaultMessage": "Oturum JSON’u"
   },
   "sessionActionsHeader.loadingJson": {
-    "defaultMessage": "Loading JSON..."
+    "defaultMessage": "JSON yükleniyor..."
   },
   "sessionActionsHeader.modelInteractionsFailed": {
-    "defaultMessage": "Failed to load model interactions: {error}"
+    "defaultMessage": "Model etkileşimleri yüklenemedi: {error}"
   },
   "sessionActionsHeader.modelInteractionsTitle": {
-    "defaultMessage": "Recent model interactions"
+    "defaultMessage": "Son model etkileşimleri"
   },
   "sessionActionsHeader.renameFailed": {
-    "defaultMessage": "Failed to rename session: {error}"
+    "defaultMessage": "Oturum yeniden adlandırılamadı: {error}"
   },
   "sessionActionsHeader.renamePlaceholder": {
-    "defaultMessage": "Enter session name"
+    "defaultMessage": "Oturum adını girin"
   },
   "sessionActionsHeader.renameSession": {
-    "defaultMessage": "Rename session"
+    "defaultMessage": "Oturumu yeniden adlandır"
   },
   "sessionActionsHeader.renameTitle": {
-    "defaultMessage": "Rename Session"
+    "defaultMessage": "Oturumu Yeniden Adlandır"
   },
   "sessionActionsHeader.renamed": {
-    "defaultMessage": "Session renamed"
+    "defaultMessage": "Oturum yeniden adlandırıldı"
   },
   "sessionActionsHeader.save": {
-    "defaultMessage": "Save"
+    "defaultMessage": "Kaydet"
   },
   "sessionActionsHeader.saving": {
-    "defaultMessage": "Saving..."
+    "defaultMessage": "Kaydediliyor..."
   },
   "sessionActionsHeader.viewJson": {
-    "defaultMessage": "View session JSON"
+    "defaultMessage": "Oturum JSON’unu görüntüle"
   },
   "sessionActionsHeader.viewModelInteractions": {
-    "defaultMessage": "View recent model interactions"
+    "defaultMessage": "Son model etkileşimlerini görüntüle"
   },
   "sessionIndicators.error": {
     "defaultMessage": "Oturum bir hatayla karşılaştı"
@@ -3757,6 +3802,9 @@
   },
   "sessionIndicators.streaming": {
     "defaultMessage": "Akış"
+  },
+  "sessions.acpBadge": {
+    "defaultMessage": "ACP"
   },
   "sessions.action.delete": {
     "defaultMessage": "Oturumu sil"
@@ -3836,6 +3884,9 @@
   "sessions.importing": {
     "defaultMessage": "İçe aktarılıyor..."
   },
+  "sessions.includeAcp": {
+    "defaultMessage": "ACP oturumlarını dahil et"
+  },
   "sessions.loadingMore": {
     "defaultMessage": "Daha fazla oturum yükleniyor..."
   },
@@ -3844,6 +3895,12 @@
   },
   "sessions.saving": {
     "defaultMessage": "Kaydediliyor..."
+  },
+  "sessions.scheduledJobs": {
+    "defaultMessage": "Scheduled Jobs"
+  },
+  "sessions.scheduledJobsCount": {
+    "defaultMessage": "{count,plural,one{{count} job} other{{count} jobs}}"
   },
   "sessions.search.noResults": {
     "defaultMessage": "Eşleşen oturum bulunamadı"
@@ -4415,6 +4472,9 @@
   "telemetrySettings.updateError": {
     "defaultMessage": "Telemetri ayarları güncellenemedi."
   },
+  "themeSelector.aura": {
+    "defaultMessage": "Aura"
+  },
   "themeSelector.dark": {
     "defaultMessage": "Karanlık"
   },
@@ -4496,9 +4556,6 @@
   "updateSection.autoDownloadDisabledNote": {
     "defaultMessage": "Otomatik indirme devre dışı. Manuel olarak indirmek için \"Şimdi İndir\"e tıklayın."
   },
-  "updateSection.autoInstallNote": {
-    "defaultMessage": "Uygulamadan çıktığınızda güncelleme otomatik olarak yüklenecektir."
-  },
   "updateSection.checkForUpdates": {
     "defaultMessage": "Güncellemeleri Kontrol Et"
   },
@@ -4529,26 +4586,11 @@
   "updateSection.installAndRestart": {
     "defaultMessage": "Yükle ve Yeniden Başlat"
   },
-  "updateSection.installNowHint": {
-    "defaultMessage": "Veya şimdi güncellemek için \"Yükle ve Yeniden Başlat\"ı tıklayın."
-  },
   "updateSection.latestVersion": {
     "defaultMessage": "En son sürümü çalıştırıyorsunuz!"
   },
   "updateSection.loading": {
     "defaultMessage": "Yükleniyor..."
-  },
-  "updateSection.manualInstallNote": {
-    "defaultMessage": "İndirdikten sonra güncellemeyi manuel olarak yüklemeniz gerekecektir."
-  },
-  "updateSection.manualInstallRequired": {
-    "defaultMessage": "Bu güncelleme yöntemi için manuel kurulum gereklidir."
-  },
-  "updateSection.readyInstallAuto": {
-    "defaultMessage": "✓ Güncelleme hazır! Goose'den çıktığınızda yüklenecektir."
-  },
-  "updateSection.readyInstallManual": {
-    "defaultMessage": "✓ Güncelleme hazır! Kurulum talimatları için \"Yükle ve Yeniden Başlat\"a tıklayın."
   },
   "updateSection.upToDate": {
     "defaultMessage": "(güncel)"
@@ -4612,5 +4654,122 @@
   },
   "userMessage.removeImageFromEdit": {
     "defaultMessage": "Görseli mesajdan kaldır"
+  },
+  "modelsBottomBar.recentModels": {
+    "defaultMessage": "Son kullanılan"
+  },
+  "providerConfigurationModal.chooseModel": {
+    "defaultMessage": "Modeli seçin"
+  },
+  "providerCard.deprecatedReplacement": {
+    "defaultMessage": "Kullanımdan kaldırıldı — bunun yerine {replacement} kullanın."
+  },
+  "acpReadinessPanel.adapterFound": {
+    "defaultMessage": "ACP bağdaştırıcısı bulundu"
+  },
+  "acpReadinessPanel.adapterNotFound": {
+    "defaultMessage": "ACP bağdaştırıcısı bulunamadı"
+  },
+  "acpReadinessPanel.authenticationHelp": {
+    "defaultMessage": "Sağlayıcı CLI üzerinden oturum açın, ardından tekrar kontrol edin."
+  },
+  "acpReadinessPanel.checkAgain": {
+    "defaultMessage": "Tekrar kontrol et"
+  },
+  "acpReadinessPanel.checking": {
+    "defaultMessage": "Kontrol ediliyor..."
+  },
+  "acpReadinessPanel.connected": {
+    "defaultMessage": "Başarıyla bağlanıldı"
+  },
+  "acpReadinessPanel.connectionNotChecked": {
+    "defaultMessage": "Devam etmeden önce hesap bağlantınızı kontrol edin."
+  },
+  "providerConfigForm.deviceCodeAndEnter": {
+    "defaultMessage": "ve girin:"
+  },
+  "providerConfigForm.deviceCodeCopy": {
+    "defaultMessage": "Kopyala"
+  },
+  "providerConfigForm.deviceCodeVisit": {
+    "defaultMessage": "Ziyaret edin"
+  },
+  "providerConfigurationModal.deviceCodeAndEnter": {
+    "defaultMessage": "ve girin:"
+  },
+  "providerConfigurationModal.deviceCodeCopy": {
+    "defaultMessage": "Kopyala"
+  },
+  "providerConfigurationModal.deviceCodeVisit": {
+    "defaultMessage": "Ziyaret edin"
+  },
+  "settings.agentLoop.description": {
+    "defaultMessage": "İşlem tabanlı ajan döngüsünü kullanır. Eski döngüyü kullanmak için kapatın."
+  },
+  "settings.agentLoop.operations.auto.placeholder": {
+    "defaultMessage": "Otomatik"
+  },
+  "settings.agentLoop.operations.blockLimit.label": {
+    "defaultMessage": "Engelleme sınırı"
+  },
+  "settings.agentLoop.operations.contextCompaction.description": {
+    "defaultMessage": "Bağlam penceresi dolmadan önce konuşma geçmişini özetler."
+  },
+  "settings.agentLoop.operations.contextCompaction.title": {
+    "defaultMessage": "Bağlam sıkıştırma"
+  },
+  "settings.agentLoop.operations.cutoff.label": {
+    "defaultMessage": "Kesme noktası"
+  },
+  "settings.agentLoop.operations.enable": {
+    "defaultMessage": "{operation} etkinleştir"
+  },
+  "settings.agentLoop.operations.failureTimeout.label": {
+    "defaultMessage": "Başarısızlık zaman aşımı"
+  },
+  "settings.agentLoop.operations.heading": {
+    "defaultMessage": "Yapılandırılabilir işlemler"
+  },
+  "settings.agentLoop.operations.maxTurns.description": {
+    "defaultMessage": "Otonom çalışmayı durdurur ve devam etmeden önce kullanıcıya sorar."
+  },
+  "settings.agentLoop.operations.maxTurns.title": {
+    "defaultMessage": "Maksimum tur"
+  },
+  "settings.agentLoop.operations.recipeRetry.description": {
+    "defaultMessage": "Yapılandırılmış bir başarı denetimi başarısız olduğunda tarif denetimlerini yeniden çalıştırır."
+  },
+  "settings.agentLoop.operations.recipeRetry.title": {
+    "defaultMessage": "Tarifi yeniden dene"
+  },
+  "settings.agentLoop.operations.retryTimeout.label": {
+    "defaultMessage": "Yeniden deneme zaman aşımı"
+  },
+  "settings.agentLoop.operations.slashCommands.description": {
+    "defaultMessage": "/compact, /skills ve tarif kısayolları gibi komutları tanır."
+  },
+  "settings.agentLoop.operations.slashCommands.title": {
+    "defaultMessage": "Eğik çizgi komutları"
+  },
+  "settings.agentLoop.operations.stopHooks.description": {
+    "defaultMessage": "Kancaların tamamlanmayı engellemesine izin verirken sonsuz durdurma döngülerini önler."
+  },
+  "settings.agentLoop.operations.stopHooks.title": {
+    "defaultMessage": "Durdurma kancaları"
+  },
+  "settings.agentLoop.operations.threshold.label": {
+    "defaultMessage": "Eşik %"
+  },
+  "settings.agentLoop.operations.toolPairCompaction.description": {
+    "defaultMessage": "Bağlamdan tasarruf etmek için eski araç isteklerini ve yanıtlarını özetler. Boş bırakıldığında kesme noktası otomatik belirlenir."
+  },
+  "settings.agentLoop.operations.toolPairCompaction.title": {
+    "defaultMessage": "Araç çifti sıkıştırma"
+  },
+  "settings.agentLoop.operations.turns.label": {
+    "defaultMessage": "Turlar"
+  },
+  "settings.agentLoop.title": {
+    "defaultMessage": "Ajan döngüsü"
   }
 }

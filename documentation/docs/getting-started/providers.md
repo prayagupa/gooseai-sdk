@@ -22,6 +22,7 @@ goose is compatible with a wide range of LLM providers, allowing you to choose a
 
 | Provider                                                                    | Description                                                                                                                                                                                                               | Parameters                                                                                                                                                                          |
 |-----------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [AI/ML API](https://aimlapi.com/)                                           | One API key for 300+ chat, image, video, audio, and embedding models from many providers, OpenAI-compatible. | `AIMLAPI_API_KEY` |
 | [Amazon Bedrock](https://aws.amazon.com/bedrock/)                           | Offers a variety of foundation models, including Claude, Jurassic-2, and others. **AWS environment variables must be set in advance, not configured through `goose configure`**                                           | Credential auth: `AWS_PROFILE`, or `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`<br /><br />Bearer token auth: `AWS_BEARER_TOKEN_BEDROCK` and `AWS_REGION`, `AWS_DEFAULT_REGION`, or `AWS_PROFILE` |
 | [Amazon SageMaker TGI](https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints.html) | Run Text Generation Inference models through Amazon SageMaker endpoints. **AWS credentials must be configured in advance.** | `SAGEMAKER_ENDPOINT_NAME`, `AWS_REGION` (optional), `AWS_PROFILE` (optional)  |
 | [Anthropic](https://www.anthropic.com/)                                     | Offers Claude, an advanced AI model for natural language tasks.                                                                                                                                                           | `ANTHROPIC_API_KEY`, `ANTHROPIC_HOST` (optional)                                                                                                                                                                 |
@@ -38,6 +39,7 @@ goose is compatible with a wide range of LLM providers, allowing you to choose a
 | [Gemini](https://ai.google.dev/gemini-api/docs)                             | Advanced LLMs by Google with multimodal capabilities (text, images). Gemini 3 models support configurable [thinking levels](#gemini-3-thinking-levels).                                                                                                | `GOOGLE_API_KEY`, `GEMINI3_THINKING_LEVEL` (optional)                                                                                                                              |
 | [GCP Vertex AI](https://cloud.google.com/vertex-ai)                         | Google Cloud's Vertex AI platform, supporting Gemini and Claude models. **Credentials must be [configured in advance](https://cloud.google.com/vertex-ai/docs/authentication).** Filters for allowed models by organization policy (if configured). | `GCP_PROJECT_ID`, `GCP_LOCATION` and optionally `GCP_MAX_RATE_LIMIT_RETRIES` (5), `GCP_MAX_OVERLOADED_RETRIES` (5), `GCP_INITIAL_RETRY_INTERVAL_MS` (5000), `GCP_BACKOFF_MULTIPLIER` (2.0), `GCP_MAX_RETRY_INTERVAL_MS` (320_000). |
 | [GitHub Copilot](https://docs.github.com/en/copilot/using-github-copilot/ai-models) | Access to AI models from OpenAI, Anthropic, Google, and other providers through GitHub's Copilot infrastructure. **GitHub account with Copilot access required.** | No manual key. Uses [device flow authentication](#github-copilot-authentication) for both CLI and Desktop. |
+| [Gondola](https://gondola-ai.com/guides)                                     | Pay-per-request inference via Venice AI, settled in USDC on Base. No subscription or minimum. Includes privacy-preserving TEE models (`e2ee-*`). OpenAI-compatible.                                                      | `GONDOLA_API_KEY`, `GONDOLA_HOST` (optional)                                                                                                                                        |
 | [Groq](https://groq.com/)                                                   | High-performance inference hardware and tools for LLMs.                                                                                                                                                                   | `GROQ_API_KEY`                                                                                                                                                                      |
 | [iFlytek Spark](https://www.xfyun.cn/doc/spark/HTTP%E8%B0%83%E7%94%A8%E6%96%87%E6%A1%A3.html) | iFlytek Spark (讯飞星火) models (4.0Ultra, generalv3.5, max-32k) via the OpenAI-compatible HTTP API. Best for chat: Spark needs `tool_calls_switch=true` (not injectable here) to return OpenAI-style tool calls. | `SPARK_API_PASSWORD` |
 | [iFlytek Astron MaaS](https://maas.xfyun.cn/)                               | iFlytek Astron MaaS (讯飞星辰) hosting Spark X2, DeepSeek, GLM, Kimi, MiniMax, Qwen, and Astron coding models via an OpenAI-compatible API. Set `ASTRON_BASE_URL` to switch between the Token Plan and Coding Plan endpoints. | `ASTRON_API_KEY`, `ASTRON_BASE_URL` (optional) |
@@ -55,11 +57,13 @@ goose is compatible with a wide range of LLM providers, allowing you to choose a
 | [OVHcloud AI](https://www.ovhcloud.com/en/public-cloud/ai-endpoints/)       | Provides access to open-source models including Qwen, Llama, Mistral, and DeepSeek through AI Endpoints service.                                                       | `OVHCLOUD_API_KEY`                                                                                                                                                                  |
 | [Ramalama](https://ramalama.ai/)                                            | Local model using native [OCI](https://opencontainers.org/) container runtimes, [CNCF](https://www.cncf.io/) tools, and supporting models as OCI artifacts. Ramalama API is a compatible alternative to Ollama and can be used with the goose Ollama provider. Supports Qwen, Llama, DeepSeek, and other open-source models. **Because this provider runs locally, you must first [download and run a model](#local-llms).**  | `OLLAMA_HOST`                                                                                                                                                                       |
 | [Routstr](https://routstr.com/)                                             | OpenAI-compatible aggregator that fronts dozens of upstream providers (Anthropic, OpenAI, Google, DeepSeek, Llama, …) behind a single API. Authenticate with an `sk-...` bearer issued by your Routstr instance — payment is handled outside goose.                                                                                                                                                                       | `ROUTSTR_API_KEY`, `ROUTSTR_HOST` (optional, default `https://api.routstr.com`)                                                                                                     |
+| [SayGM](https://saygm.com/)                                                 | TEE-backed private inference via an OpenAI-compatible API with dynamic model routing. Prices are determined at runtime per request.                                                                           | `SAYGM_API_KEY`                                                                                                   |
 | [SaladCloud AI Gateway](https://salad.com/)                                 | OpenAI-compatible access to SaladCloud-hosted open-source models, including Qwen, Gemma, and others.                                                                                                          | `SALAD_CLOUD_API_KEY`                                                                                                                                                              |
 | [Scaleway](https://www.scaleway.com/en/generative-apis/)                    | European cloud offering OpenAI-compatible access to models like Mistral, Qwen, and open-source weights. Ensures data residency and GDPR compliance.                                                                                                                                                                                                                                                                | `SCW_SECRET_KEY`      |
 | [Snowflake](https://docs.snowflake.com/user-guide/snowflake-cortex/aisql#choosing-a-model) | Access the latest models using Snowflake Cortex services, including Claude models. **Requires a Snowflake account and programmatic access token (PAT)**.                                                     | `SNOWFLAKE_HOST`, `SNOWFLAKE_TOKEN`                                                                                                                                                                 |
 | [VMware Tanzu Platform](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/ai-services/10-3/ai/index.html) | Enterprise-managed LLM access through AI Services on VMware Tanzu Platform. Models are fetched dynamically from the endpoint. | `TANZU_AI_API_KEY`, `TANZU_AI_ENDPOINT` |
 | [Tetrate Agent Router Service](https://router.tetrate.ai)                   | Unified API gateway for AI models including Claude, Gemini, GPT, open-weight models, and others. Supports PKCE authentication flow for secure API key generation.                                                                                | `TETRATE_API_KEY`, `TETRATE_HOST` (optional)                                                                                                                                        |
+| [TrustedRouter](https://trustedrouter.com)                                  | Models from OpenAI, Anthropic, Google, DeepSeek and others via TrustedRouter's OpenAI-compatible API, with per-request routing and failover.                                                                                                     | `TRUSTEDROUTER_API_KEY`                                                                                                                                                             |
 | [Venice AI](https://venice.ai/home)                                         | Provides access to open source models like Llama, Mistral, and Qwen while prioritizing user privacy. **Requires an account and an [API key](https://docs.venice.ai/overview/guides/generating-api-key)**.                 | `VENICE_API_KEY`, `VENICE_HOST` (optional), `VENICE_BASE_PATH` (optional), `VENICE_MODELS_PATH` (optional)                                                                          |
 | [Cerebras](https://cerebras.ai/)                                            | Fast inference on Cerebras wafer-scale engines with models like Llama, Qwen, and others.                                                                                                                                  | `CEREBRAS_API_KEY`                                                                                                                                                                  |
 | [xAI](https://x.ai/)                                                        | Access to xAI's Grok models including grok-3, grok-3-mini, and grok-3-fast with 131,072 token context window.                                                                                                            | `XAI_API_KEY`, `XAI_HOST` (optional)                                                                                                                                                |
@@ -86,6 +90,29 @@ goose supports [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) a
 :::tip ACP Providers
 See the [ACP Providers guide](/docs/guides/acp-providers) for detailed setup instructions.
 :::
+
+### Z.AI Coding Plan
+
+In goose Desktop, open **Settings → Models**, choose **Z.AI Coding Plan**, and
+enter your Coding Plan API key. The model selector discovers available models
+from your Coding Plan endpoint; use **Refresh** to update the list.
+Z.AI may list models that your subscription cannot use; access is checked when
+you send a request.
+
+In the CLI, select **Z.AI Coding Plan** in `goose configure` and supply your Coding Plan API key,
+or set `GOOSE_PROVIDER=zai_coding_plan`, `GOOSE_MODEL=glm-5.3`, and
+`ZAI_CODING_PLAN_API_KEY`. GLM-5.3 and GLM-5.3-Flash are the fallback choices
+when the endpoint does not support model discovery.
+
+This provider uses the dedicated OpenAI-compatible endpoint
+`https://api.z.ai/api/coding/paas/v4`. It enables both `stream` and `tool_stream`
+for streaming requests, including newly discovered models, so tool arguments arrive incrementally, and preserves
+`reasoning_content` across tool-result turns. The existing **Z.AI** provider
+continues to use the Anthropic-compatible endpoint.
+
+See Z.AI's [Coding Plan model availability](https://docs.z.ai/devpack/overview),
+[tool streaming](https://docs.z.ai/guides/capabilities/stream-tool), and
+[thinking preservation](https://docs.z.ai/guides/capabilities/thinking-mode) documentation.
 
 ## Configure Provider and Model
 
@@ -462,7 +489,9 @@ Custom providers must use OpenAI, Anthropic, or Ollama compatible API formats. T
        - **Name**: A friendly name for the provider
        - **API URL**: The base URL of the API endpoint
        - **Authentication Required**: Answer "Yes" if your provider needs an API key, or "No" if authentication is not required
-         - If Yes: You'll be prompted to enter your **API Key** (stored securely in the keychain, or in `secrets.yaml` if the keyring is disabled or cannot be accessed)
+         - If Yes: Choose how goose should obtain the credential:
+           - **Static API key**: You'll be prompted to enter your **API Key** (stored securely in the keychain, or in `secrets.yaml` if the keyring is disabled or cannot be accessed)
+           - **Command (refreshable)**: You'll be prompted for a **command** (and optional arguments) that goose runs to fetch the credential, plus a **refresh interval** in seconds. Use this for short-lived credentials issued by an IdP or key vault, so goose can refresh them automatically instead of requiring a restart when they expire. See [Command-Based Authentication](#command-based-authentication) below.
          - If No: The API key prompt is skipped
        - **Available Models**: Comma-separated list of available model names
        - **Streaming Support**: Whether the API supports streaming responses
@@ -516,6 +545,50 @@ Custom providers must use OpenAI, Anthropic, or Ollama compatible API formats. T
     :::tip Keychain Key Storage
     If you want to store the API key in the `goose` keychain, update the provider in goose Desktop and enter the key. This provides secure, persistent storage and allows goose to connect natively to the provider.
     :::
+
+  </TabItem>
+</Tabs>
+
+### Command-Based Authentication
+
+Instead of a static `api_key_env`, a custom provider can be configured to run a command to obtain its credential. This is useful for short-lived credentials issued by an IdP or key vault: goose re-runs the command to refresh the credential instead of requiring a restart when it expires.
+
+Add an `auth` object to the provider's JSON configuration in place of `api_key_env` (the two are mutually exclusive):
+
+```json
+{
+  "name": "custom_corp_api",
+  "engine": "openai",
+  "display_name": "Corporate API",
+  "base_url": "https://api.company.com/v1/chat/completions",
+  "models": [{ "name": "gpt-4o", "context_limit": 128000 }],
+  "requires_auth": true,
+  "auth": {
+    "command": "/path/to/get-token.sh",
+    "args": [],
+    "refresh_interval": 3600,
+    "timeout_seconds": 10
+  }
+}
+```
+
+- **`command`**: The executable to run. It is spawned directly, without a shell — none of `command`/`args` are shell-interpolated. If your script needs shell features (pipes, variable expansion), invoke an interpreter explicitly, e.g. `"command": "/bin/bash", "args": ["-c", "..."]`. A bare name (no path separator, e.g. `"get-token"`) is looked up on `PATH`; a relative path (e.g. `"./scripts/get-token.sh"`) is resolved against `cwd`.
+- **`args`** (optional): Arguments passed to `command`.
+- **`refresh_interval`** (optional, defaults to `3600`): How long, in seconds, a fetched credential is cached before the command is re-run. Set to `0` to disable proactive refresh entirely — the command then only reruns reactively, after the provider's API rejects a request with an auth error.
+- **`timeout_seconds`** (optional, defaults to `10`): How long to wait for the command before treating it as failed.
+- **`cwd`** (optional): Working directory for the command, and the base a relative `command` path is resolved against. Defaults to goose's current directory.
+
+The command's trimmed standard output is used as the credential. It must exit successfully and print a non-empty value; on failure, goose surfaces an error rather than silently reusing a stale credential. The command inherits goose's full environment, since the same user configures goose and writes the script.
+
+<Tabs groupId="interface">
+  <TabItem value="cli" label="goose CLI" default>
+
+    In `goose configure`, choose **Command (refreshable)** when prompted for how to obtain credentials for a custom provider (see [above](#configure-custom-provider)).
+
+  </TabItem>
+  <TabItem value="config" label="Config File">
+
+    Add the `auth` object shown above to the provider's JSON file instead of setting `api_key_env`.
 
   </TabItem>
 </Tabs>
@@ -687,7 +760,7 @@ Groq offers several open source models that support tool calling, including:
 - **llama-3.3-70b-versatile** - Meta's Llama 3.3 model for versatile applications
 - **llama-3.1-8b-instant** - Meta's Llama 3.1 model for fast inference
 
-For the complete list of supported Groq models, see [groq.json](https://github.com/aaif-goose/goose/blob/main/crates/goose/src/providers/declarative/groq.json).
+For the complete list of supported Groq models, see [groq.json](https://github.com/aaif-goose/goose/blob/main/crates/goose-providers/src/declarative/definitions/groq.json).
 
 To set up Groq with goose, follow these steps:
 
@@ -728,7 +801,7 @@ EmpirioLabs offers models that support tool calling, including:
 - **kimi-k2-7-code** - Kimi K2.7 Code with a 256K context window
 - **minimax-m3** - MiniMax M3 with a 524K context window
 
-The full live catalog is available at `https://api.empiriolabs.ai/v1/models`. For the complete list of EmpirioLabs models configured in goose, see [empiriolabs.json](https://github.com/aaif-goose/goose/blob/main/crates/goose/src/providers/declarative/empiriolabs.json). For more details, see the [EmpirioLabs documentation](https://docs.empiriolabs.ai).
+The full live catalog is available at `https://api.empiriolabs.ai/v1/models`. For the complete list of EmpirioLabs models configured in goose, see [empiriolabs.json](https://github.com/aaif-goose/goose/blob/main/crates/goose-providers/src/declarative/definitions/empiriolabs.json). For more details, see the [EmpirioLabs documentation](https://docs.empiriolabs.ai).
 
 To set up EmpirioLabs with goose, follow these steps:
 
@@ -767,7 +840,7 @@ FuturMix offers models that support tool calling, including:
 - **deepseek-chat** - DeepSeek V3 with 131K context
 - **claude-haiku-4-20250514** - Anthropic Claude Haiku 4 with 200K context
 
-For the complete list of supported FuturMix models, see [futurmix.json](https://github.com/aaif-goose/goose/blob/main/crates/goose/src/providers/declarative/futurmix.json).
+For the complete list of supported FuturMix models, see [futurmix.json](https://github.com/aaif-goose/goose/blob/main/crates/goose-providers/src/declarative/definitions/futurmix.json).
 
 To set up FuturMix with goose, follow these steps:
 
@@ -806,7 +879,7 @@ Novita AI offers many models that support tool calling, including:
 - **deepseek/deepseek-v3.2** - DeepSeek V3.2 with 164K context
 - **google/gemma-4-31b-it** - Google Gemma 4 31B with 262K context
 
-For the complete list of supported Novita AI models, see [novita.json](https://github.com/aaif-goose/goose/blob/main/crates/goose/src/providers/declarative/novita.json).
+For the complete list of supported Novita AI models, see [novita.json](https://github.com/aaif-goose/goose/blob/main/crates/goose-providers/src/declarative/definitions/novita.json).
 
 To set up Novita AI with goose, follow these steps:
 
@@ -843,7 +916,7 @@ Routstr aggregates models from many upstream providers, including:
 - **deepseek-v4-pro** — DeepSeek V4 Pro
 - **gemini-3.1-pro-preview** — gemini-3.1 Pro Preview
 
-`/v1/models` is queried at configure time, so the full catalogue your Routstr instance exposes is available in the model picker. For the static defaults shipped with goose, see [routstr.json](https://github.com/aaif-goose/goose/blob/main/crates/goose/src/providers/declarative/routstr.json).
+`/v1/models` is queried at configure time, so the full catalogue your Routstr instance exposes is available in the model picker. For the static defaults shipped with goose, see [routstr.json](https://github.com/aaif-goose/goose/blob/main/crates/goose-providers/src/declarative/definitions/routstr.json).
 
 To set up Routstr with goose, follow these steps:
 
@@ -869,6 +942,44 @@ To set up Routstr with goose, follow these steps:
     3. Follow the prompts to choose `Routstr` as the provider.
     4. Enter your API key when prompted (and optionally override `ROUTSTR_HOST`).
     5. Select the Routstr model of your choice.
+  </TabItem>
+</Tabs>
+
+### SayGM
+[SayGM](https://saygm.com/) provides TEE-backed private inference via an OpenAI-compatible API. Model routing and prices are determined at runtime per request. To use SayGM with goose, you need an API key from [SayGM](https://saygm.com/).
+
+SayGM supports many models, including:
+- **Qwen/Qwen3-235B-A22B-Thinking-2507-TEE** — Qwen3 235B thinking model (TEE-backed)
+- **deepseek-ai/DeepSeek-V3.2-TEE** — DeepSeek V3.2 (TEE-backed)
+- **moonshotai/Kimi-K3-TEE** — Kimi K3 (TEE-backed)
+- **zai-org/GLM-5.2-TEE** — GLM-5.2 (TEE-backed)
+
+`/v1/models` is queried at configure time, so the full catalogue SayGM exposes is available in the model picker.
+
+To set up SayGM with goose, follow these steps:
+
+<Tabs groupId="interface">
+  <TabItem value="ui" label="goose Desktop" default>
+  **To update your LLM provider and API key:**
+
+    1. Click the <PanelLeft className="inline" size={16} /> button in the top-left to open the sidebar.
+    2. Click the `Settings` button on the sidebar.
+    3. Click the `Models` tab.
+    4. Click `Configure Providers`
+    5. Choose `SayGM` as provider from the list.
+    6. Click `Configure`, enter your API key, and click `Submit`.
+    7. Select the SayGM model of your choice.
+
+  </TabItem>
+  <TabItem value="cli" label="goose CLI">
+    1. Run:
+    ```sh
+    goose configure
+    ```
+    2. Select `Configure Providers` from the menu.
+    3. Follow the prompts to choose `SayGM` as the provider.
+    4. Enter your API key when prompted.
+    5. Select the SayGM model of your choice.
   </TabItem>
 </Tabs>
 
@@ -1463,7 +1574,6 @@ This method simplifies authentication and enhances security for enterprise envir
 
 Beyond single-model setups, goose supports [multi-model configurations](/docs/guides/multi-model/) that can use different models and providers for specialized tasks:
 
-- **Planning Mode** - Use a dedicated planner model to create detailed project breakdowns before execution
 - **Subagents** - Delegate scoped tasks to isolated sessions to keep your primary workflow focused and efficient
 
 ## Meta Muse Spark Reasoning Effort
